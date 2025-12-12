@@ -1,0 +1,5 @@
+{
+  "name": "Hockey Fight Excalibur",
+  "description": "A retro hockey fighting game converted to Excalibur.js",
+  "requestFramePermissions": []
+}
