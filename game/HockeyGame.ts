@@ -1,5 +1,4 @@
 
-
 import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite } from "excalibur";
 import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE } from "../constants";
 import { Player } from "./Player";
@@ -27,6 +26,7 @@ export class HockeyGame extends Engine {
     private shakeStrength: number = 0;
     private koTimer: number = 0;
     private glovesLanded: boolean = false;
+    private winTriggered: boolean = false;
 
     // Multiplayer
     public networkManager: NetworkManager | null = null;
@@ -190,6 +190,7 @@ export class HockeyGame extends Engine {
         this.shakeTimer = 0;
         this.koTimer = 0;
         this.glovesLanded = false;
+        this.winTriggered = false;
         
         this.isReplaying = false;
         this.replayBuffer = [];
@@ -455,16 +456,25 @@ export class HockeyGame extends Engine {
     }
 
     private checkGameOver() {
-        if (this.isGameOver) return;
+        if (!this.isGameOver) {
+            if (this.player1.state === 'down' || this.player1.state === 'falling') {
+                this.isGameOver = true;
+                this.winner = 'PLAYER 2';
+            } else if (this.player2.state === 'down' || this.player2.state === 'falling') {
+                this.isGameOver = true;
+                this.winner = 'PLAYER 1';
+            }
+        }
 
-        if (this.player1.state === 'down' || this.player1.state === 'falling') {
-            this.isGameOver = true;
-            this.winner = 'PLAYER 2';
-            this.player2.setState('win');
-        } else if (this.player2.state === 'down' || this.player2.state === 'falling') {
-            this.isGameOver = true;
-            this.winner = 'PLAYER 1';
-            this.player1.setState('win');
+        if (this.isGameOver && !this.winTriggered && this.winner) {
+            if (this.koTimer > 1000) {
+                this.winTriggered = true;
+                if (this.winner === 'PLAYER 1') {
+                    this.player1.setState('win');
+                } else {
+                    this.player2.setState('win');
+                }
+            }
         }
     }
 
