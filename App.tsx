@@ -22,7 +22,8 @@ const App: React.FC = () => {
     replayProgress: 0,
     replaySpeed: 1,
     isMultiplayer: false,
-    connectionStatus: 'disconnected'
+    connectionStatus: 'disconnected',
+    opponentDisconnected: false
   });
 
   const [menuState, setMenuState] = useState<'main' | 'host' | 'join' | 'game'>('main');
@@ -54,6 +55,9 @@ const App: React.FC = () => {
     gameRef.current = game;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+        // Prevent restarting if opponent disconnected
+        if (game.opponentDisconnected) return;
+
         if (!game.isReplaying && game.isGameOver && (e.key === ' ' || e.key === 'Enter')) {
             game.restartGame();
         }
@@ -228,7 +232,7 @@ const App: React.FC = () => {
         )}
 
         {/* Game Over Overlay */}
-        {gameState.showGameOver && !gameState.isReplaying && (
+        {gameState.showGameOver && !gameState.isReplaying && !gameState.opponentDisconnected && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10">
                  <div className="text-4xl text-[#feca57] drop-shadow-md font-bold mb-4 animate-bounce">
                     🏆 {gameState.winner} WINS! 🏆
@@ -252,6 +256,21 @@ const App: React.FC = () => {
                         </button>
                     )}
                  </div>
+            </div>
+        )}
+
+        {/* Disconnected Overlay */}
+        {gameState.opponentDisconnected && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 z-50">
+                <div className="text-4xl text-[#e94560] drop-shadow-md font-bold mb-6">
+                    ⚠️ OPPONENT DISCONNECTED
+                </div>
+                <button 
+                    onClick={() => window.location.reload()}
+                    className="bg-[#4ecdc4] text-[#1a1a2e] px-8 py-3 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition hover:scale-105"
+                >
+                    RETURN TO MENU
+                </button>
             </div>
         )}
       </div>

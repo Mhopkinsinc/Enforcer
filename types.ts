@@ -29,6 +29,7 @@ export interface GameState {
     connectionStatus: 'disconnected' | 'connecting' | 'connected';
     roomId?: string;
     isHost?: boolean;
+    opponentDisconnected: boolean;
 }
 
 export interface PlayerSnapshot {

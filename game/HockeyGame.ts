@@ -33,6 +33,7 @@ export class HockeyGame extends Engine {
     // Multiplayer
     public networkManager: NetworkManager | null = null;
     private isHost: boolean = false;
+    public opponentDisconnected: boolean = false;
 
     // Replay System
     public isReplaying: boolean = false;
@@ -121,6 +122,7 @@ export class HockeyGame extends Engine {
     public setupNetwork(manager: NetworkManager, isHost: boolean) {
         this.networkManager = manager;
         this.isHost = isHost;
+        this.opponentDisconnected = false;
 
         // Setup Listener
         this.networkManager.onMessage = (msg) => {
@@ -160,6 +162,13 @@ export class HockeyGame extends Engine {
             } else if (msg.type === 'RESTART') {
                 this.reset();
             }
+        };
+
+        this.networkManager.onDisconnect = () => {
+            console.log("Opponent disconnected");
+            this.opponentDisconnected = true;
+            this.isGameOver = true;
+            this.updateUI();
         };
 
         this.reset();
@@ -208,6 +217,11 @@ export class HockeyGame extends Engine {
         this.koTimer = 0;
         this.glovesLanded = false;
         this.winTriggered = false;
+        
+        // Don't reset opponentDisconnected here, as it's a persistent state until the session ends
+        // But if we are manually restarting (via menu), we might want to. 
+        // For now, assume restartGame is called when we want to play again, which implies connection is good.
+        // However, if disconnect happened, we probably force a page reload via UI, so this reset logic is fine.
         
         this.isReplaying = false;
         this.replayBuffer = [];
@@ -533,7 +547,8 @@ export class HockeyGame extends Engine {
                 isMultiplayer: !!this.networkManager,
                 connectionStatus: this.networkManager ? 'connected' : 'disconnected',
                 roomId: this.networkManager ? '...' : undefined,
-                isHost: this.isHost
+                isHost: this.isHost,
+                opponentDisconnected: this.opponentDisconnected
             });
         }
     }
