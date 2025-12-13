@@ -124,7 +124,7 @@ export class Player extends Actor {
         const sprite = starSheet.getSprite(this.isPlayer1 ? 0 : 1, 0);
         if (sprite) {
             sprite.scale = vec(SCALE, SCALE);
-            (star.graphics as any).use(sprite);
+            (this as any).graphics.use(sprite);
         }
 
         (this as any).addChild(star);
@@ -379,6 +379,7 @@ export class Player extends Actor {
 
                     if ((this as any).scene && (this as any).scene.engine) {
                         game.shake(200, 5); 
+                        game.playHitSound(hitType);
                     }
 
                     if (hitType === 'high') {

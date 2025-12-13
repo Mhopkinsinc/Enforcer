@@ -1,16 +1,20 @@
 
-import { ImageSource } from "excalibur";
+import { ImageSource, Sound } from "excalibur";
 import { AnimationState } from "./types";
 import { SPRITE_SHEET_B64 } from "./game/sprites/spritesheet";
 import { GLOVES_SHEET_B64 } from "./game/sprites/glovesspritesheet";
 import { STARS_SHEET_B64 } from "./game/sprites/starspritesheet";
 import { STANLEY_SHEET_B64 } from "./game/sprites/stanleycupspritesheet";
+import { SOUND_PUNCHHI_B64 } from "./game/sfx/punchhisound";
+import { SOUND_PUNCHLOW_B64 } from "./game/sfx/punchlowsound";
 
 export const getResources = () => ({
     SpriteSheet: new ImageSource(SPRITE_SHEET_B64),
     GlovesSheet: new ImageSource(GLOVES_SHEET_B64),
     StarsSheet: new ImageSource(STARS_SHEET_B64),
-    StanleySheet: new ImageSource(STANLEY_SHEET_B64)
+    StanleySheet: new ImageSource(STANLEY_SHEET_B64),
+    PunchHiSound: new Sound(SOUND_PUNCHHI_B64),
+    PunchLowSound: new Sound(SOUND_PUNCHLOW_B64)
 });
 
 // --- Config ---

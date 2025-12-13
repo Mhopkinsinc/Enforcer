@@ -57,6 +57,7 @@ export interface GameSnapshot {
     cameraPos: { x: number, y: number };
     cameraZoom: number;
     entities: EntitySnapshot[];
+    sounds?: ('high' | 'low')[];
 }
 
 // --- Network Messages ---

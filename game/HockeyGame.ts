@@ -1,5 +1,5 @@
 
-import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite } from "excalibur";
+import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite, Sound } from "excalibur";
 import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE } from "../constants";
 import { Player } from "./Player";
 import { Gloves } from "./Gloves";
@@ -12,6 +12,8 @@ export interface GameResources {
     GlovesSheet: ImageSource;
     StarsSheet: ImageSource;
     StanleySheet: ImageSource;
+    PunchHiSound: Sound;
+    PunchLowSound: Sound;
 }
 
 export class HockeyGame extends Engine {
@@ -37,6 +39,7 @@ export class HockeyGame extends Engine {
     private replayBuffer: GameSnapshot[] = [];
     private replayIndex: number = 0;
     private playbackSpeed: number = 1;
+    private currentFrameSounds: ('high' | 'low')[] = [];
     
     // Replay Rendering
     private replayPool: Actor[] = [];
@@ -79,7 +82,9 @@ export class HockeyGame extends Engine {
             this.resources.SpriteSheet, 
             this.resources.GlovesSheet,
             this.resources.StarsSheet,
-            this.resources.StanleySheet
+            this.resources.StanleySheet,
+            this.resources.PunchHiSound,
+            this.resources.PunchLowSound
         ]);
         loader.suppressPlayButton = true;
         
@@ -100,6 +105,17 @@ export class HockeyGame extends Engine {
     setupGame(uiCallback: (state: GameState) => void) {
         this.uiCallback = uiCallback;
         // Do not auto-reset here, wait for setupNetwork or manual reset call
+    }
+
+    public playHitSound(type: 'high' | 'low') {
+        if (!this.isReplaying) {
+            if (type === 'high') {
+                this.resources.PunchHiSound.play(0.5);
+            } else {
+                this.resources.PunchLowSound.play(0.5);
+            }
+            this.currentFrameSounds.push(type);
+        }
     }
 
     public setupNetwork(manager: NetworkManager, isHost: boolean) {
@@ -129,6 +145,7 @@ export class HockeyGame extends Engine {
                 victim.vx += dir * KNOCKBACK_FORCE;
 
                 this.shake(200, 5);
+                this.playHitSound(damageType);
 
                 // Blood
                 if (damageType === 'high') {
@@ -197,6 +214,7 @@ export class HockeyGame extends Engine {
         this.replayIndex = 0;
         this.playbackSpeed = 1;
         this.replayPool = []; 
+        this.currentFrameSounds = [];
 
         (this as any).currentScene.camera.zoom = 1;
         (this as any).currentScene.camera.pos = new Vector(400, 200);
@@ -301,14 +319,17 @@ export class HockeyGame extends Engine {
                 p2: this.player2.getSnapshot(),
                 cameraPos: { x: (this as any).currentScene.camera.pos.x, y: (this as any).currentScene.camera.pos.y },
                 cameraZoom: (this as any).currentScene.camera.zoom,
-                entities: entities
+                entities: entities,
+                sounds: [...this.currentFrameSounds]
             });
+            this.currentFrameSounds = [];
         }
     }
 
     private handleReplayLogic() {
         if (this.replayBuffer.length === 0) return;
 
+        const prevIndex = Math.floor(this.replayIndex);
         this.replayIndex += this.playbackSpeed;
 
         if (this.replayIndex >= this.replayBuffer.length - 1) {
@@ -320,7 +341,22 @@ export class HockeyGame extends Engine {
             this.playbackSpeed = 0; 
         }
 
-        const frame = this.replayBuffer[Math.floor(this.replayIndex)];
+        const currentIndex = Math.floor(this.replayIndex);
+
+        // Play sounds if we advanced forward
+        if (this.playbackSpeed > 0 && currentIndex > prevIndex) {
+            for (let i = prevIndex + 1; i <= currentIndex; i++) {
+                const f = this.replayBuffer[i];
+                if (f && f.sounds) {
+                    f.sounds.forEach(s => {
+                        if (s === 'high') this.resources.PunchHiSound.play(0.5);
+                        else if (s === 'low') this.resources.PunchLowSound.play(0.5);
+                    });
+                }
+            }
+        }
+
+        const frame = this.replayBuffer[currentIndex];
         if (frame) {
             this.applySnapshot(frame);
         }
