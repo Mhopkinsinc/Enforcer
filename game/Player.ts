@@ -124,7 +124,7 @@ export class Player extends Actor {
         const sprite = starSheet.getSprite(this.isPlayer1 ? 0 : 1, 0);
         if (sprite) {
             sprite.scale = vec(SCALE, SCALE);
-            (star.graphics as any).use(sprite);
+            (this as any).graphics.use(sprite);
         }
 
         (this as any).addChild(star);
@@ -235,6 +235,14 @@ export class Player extends Actor {
         const anim = this.animations.get(newState);
         if (anim) {
             anim.reset();
+            
+            if (newState === 'win') {
+                // P1 starts at 3. P2 starts at 7. 
+                // Since we disable flip for P2, we use normal frame order.
+                const startFrame = this.isPlayer1 ? 3 : 7;
+                anim.goToFrame(startFrame);
+            }
+
             anim.play(); 
             (this as any).graphics.use(anim);
         }
@@ -371,6 +379,7 @@ export class Player extends Actor {
 
                     if ((this as any).scene && (this as any).scene.engine) {
                         game.shake(200, 5); 
+                        game.playHitSound(hitType);
                     }
 
                     if (hitType === 'high') {
@@ -422,7 +431,12 @@ export class Player extends Actor {
     private updateGraphics() {
         const anim = this.animations.get(this.state);
         if (anim) {
-            anim.flipHorizontal = !this.facingRight;
+             if (this.state === 'win' && !this.isPlayer1) {
+                // Don't flip P2 for win, so rotation is consistent with frame order (Forward)
+                anim.flipHorizontal = false;
+            } else {
+                anim.flipHorizontal = !this.facingRight;
+            }
         }
     }
 }
