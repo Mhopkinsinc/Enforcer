@@ -7,6 +7,7 @@ import { Net } from "./Net";
 import { BloodParticle } from "./BloodParticle";
 import { GameSnapshot, GameState, EntitySnapshot } from "../types";
 import { NetworkManager } from "./NetworkManager";
+import { CameraManager } from "./CameraManager";
 
 export interface GameResources {
     SpriteSheet: ImageSource;
@@ -19,17 +20,16 @@ export interface GameResources {
 }
 
 export class HockeyGame extends Engine {
-    private player1?: Player;
-    private player2?: Player;
+    public player1?: Player;
+    public player2?: Player;
     private uiCallback?: (state: GameState) => void;
     public isGameOver: boolean = false;
-    private winner: 'PLAYER 1' | 'PLAYER 2' | null = null;
+    public winner: 'PLAYER 1' | 'PLAYER 2' | null = null;
     public resources: GameResources;
+    public cameraManager: CameraManager;
 
-    private shakeTimer: number = 0;
-    private shakeStrength: number = 0;
-    private koTimer: number = 0;
-    private glovesLanded: boolean = false;
+    public koTimer: number = 0;
+    public glovesLanded: boolean = false;
     private winTriggered: boolean = false;
 
     // Multiplayer
@@ -61,7 +61,12 @@ export class HockeyGame extends Engine {
             if (this.player1 && this.player2) {
                 this.recordReplayFrame();
                 this.checkGameOver();
-                this.updateCamera(evt.elapsed);
+                
+                if (this.isGameOver && this.winner) {
+                    this.koTimer += evt.elapsed;
+                }
+
+                this.cameraManager.update(evt.elapsed);
                 
                 // Multiplayer Sync
                 if (this.networkManager) {
@@ -84,6 +89,7 @@ export class HockeyGame extends Engine {
     constructor(options: EngineOptions) {
         super(options);
         this.resources = getResources();
+        this.cameraManager = new CameraManager(this);
     }
 
     async start() {
@@ -225,8 +231,7 @@ export class HockeyGame extends Engine {
     }
 
     public shake(duration: number, strength: number) {
-        this.shakeTimer = duration;
-        this.shakeStrength = strength;
+        this.cameraManager.shake(duration, strength);
     }
 
     private reset() {
@@ -238,7 +243,6 @@ export class HockeyGame extends Engine {
 
         this.isGameOver = false;
         this.winner = null;
-        this.shakeTimer = 0;
         this.koTimer = 0;
         this.glovesLanded = false;
         this.winTriggered = false;
@@ -250,8 +254,7 @@ export class HockeyGame extends Engine {
         this.replayPool = []; 
         this.currentFrameSounds = [];
 
-        (this as any).currentScene.camera.zoom = 1;
-        (this as any).currentScene.camera.pos = new Vector(400, 200);
+        this.cameraManager.reset();
 
         const centerY = 400 / 2 + 50; 
         
@@ -437,94 +440,6 @@ export class HockeyGame extends Engine {
         for (let i = poolIndex; i < this.replayPool.length; i++) {
             (this.replayPool[i] as any).graphics.visible = false;
         }
-    }
-
-    // --------------------
-
-    private updateCamera(delta: number) {
-        if (!this.player1 || !this.player2) return;
-
-        const SCREEN_WIDTH = 800;
-        const SCREEN_HEIGHT = 400;
-        
-        let targetZoom = 1.0;
-        let targetX = 400;
-        let targetY = SCREEN_HEIGHT / 2;
-
-        if (!this.glovesLanded) {
-             targetZoom = 1.0;
-             targetX = 400;
-             targetY = 200;
-        } else if (this.isGameOver && this.winner) {
-            this.koTimer += delta;
-            
-            if (this.koTimer < 2000) {
-                const loser = this.winner === 'PLAYER 2' ? this.player1 : this.player2;
-                targetZoom = 3.5;
-                
-                const dir = ((loser as any).pos.x < ((loser.opponent as any)?.pos.x ?? 0)) ? 1 : -1;
-                targetX = (loser as any).pos.x + (25 * dir);
-                
-                targetY = (loser as any).pos.y - 50;
-            } else {
-                targetZoom = 1.0;
-                targetX = 400;
-                targetY = 200;
-            }
-        } else {
-            const p1 = (this.player1 as any).pos.x;
-            const p2 = (this.player2 as any).pos.x;
-            const midpoint = (p1 + p2) / 2;
-            const distance = Math.abs(p1 - p2);
-
-            const MIN_ZOOM = 1.0;
-            const MAX_ZOOM = 1.4; 
-            const PADDING = 250; 
-
-            const requiredWidth = distance + PADDING;
-            targetZoom = SCREEN_WIDTH / requiredWidth;
-            
-            targetZoom = Math.max(MIN_ZOOM, Math.min(targetZoom, MAX_ZOOM));
-            
-            targetX = midpoint;
-            targetY = SCREEN_HEIGHT / 2;
-        }
-
-        const lerpFactor = 0.02; 
-        const currentZoom = (this as any).currentScene.camera.zoom;
-        const newZoom = currentZoom + (targetZoom - currentZoom) * lerpFactor;
-        (this as any).currentScene.camera.zoom = newZoom;
-
-        const viewWidth = SCREEN_WIDTH / newZoom;
-        const viewHeight = SCREEN_HEIGHT / newZoom;
-        
-        const halfViewW = viewWidth / 2;
-        const halfViewH = viewHeight / 2;
-        
-        const minX = halfViewW;
-        const maxX = 800 - halfViewW;
-        const minY = halfViewH;
-        const maxY = 400 - halfViewH;
-
-        targetX = Math.max(minX, Math.min(targetX, maxX));
-        targetY = Math.max(minY, Math.min(targetY, maxY));
-
-        const currentX = (this as any).currentScene.camera.pos.x;
-        const currentY = (this as any).currentScene.camera.pos.y;
-        
-        const newX = currentX + (targetX - currentX) * lerpFactor;
-        const newY = currentY + (targetY - currentY) * lerpFactor;
-
-        let shakeX = 0;
-        let shakeY = 0;
-        if (this.shakeTimer > 0) {
-            this.shakeTimer -= delta;
-            if (this.shakeTimer < 0) this.shakeTimer = 0;
-            shakeX = (Math.random() * this.shakeStrength * 2) - this.shakeStrength;
-            shakeY = (Math.random() * this.shakeStrength * 2) - this.shakeStrength;
-        }
-
-        (this as any).currentScene.camera.pos = new Vector(newX + shakeX, newY + shakeY);
     }
 
     private checkGameOver() {
