@@ -3,6 +3,7 @@ import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostU
 import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE } from "../constants";
 import { Player } from "./Player";
 import { Gloves } from "./Gloves";
+import { Net } from "./Net";
 import { BloodParticle } from "./BloodParticle";
 import { GameSnapshot, GameState, EntitySnapshot } from "../types";
 import { NetworkManager } from "./NetworkManager";
@@ -12,6 +13,7 @@ export interface GameResources {
     GlovesSheet: ImageSource;
     StarsSheet: ImageSource;
     StanleySheet: ImageSource;
+    GoalNetsSheet: ImageSource;
     PunchHiSound: Sound;
     PunchLowSound: Sound;
 }
@@ -90,6 +92,7 @@ export class HockeyGame extends Engine {
             this.resources.GlovesSheet,
             this.resources.StarsSheet,
             this.resources.StanleySheet,
+            this.resources.GoalNetsSheet,
             this.resources.PunchHiSound,
             this.resources.PunchLowSound
         ]);
@@ -228,6 +231,10 @@ export class HockeyGame extends Engine {
 
     private reset() {
         ((this as any).currentScene as any).clear();
+
+        // Add Net to background (center X, somewhat high Y to look like background)
+        const net = new Net(400, 50);
+        ((this as any).currentScene as any).add(net);
 
         this.isGameOver = false;
         this.winner = null;

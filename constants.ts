@@ -5,6 +5,7 @@ import { SPRITE_SHEET_B64 } from "./game/sprites/spritesheet";
 import { GLOVES_SHEET_B64 } from "./game/sprites/glovesspritesheet";
 import { STARS_SHEET_B64 } from "./game/sprites/starspritesheet";
 import { STANLEY_SHEET_B64 } from "./game/sprites/stanleycupspritesheet";
+import { GOALNETS_SHEET_B64 } from "./game/sprites/netsspritesheet";
 import { SOUND_PUNCHHI_B64 } from "./game/sfx/punchhisound";
 import { SOUND_PUNCHLOW_B64 } from "./game/sfx/punchlowsound";
 
@@ -13,6 +14,7 @@ export const getResources = () => ({
     GlovesSheet: new ImageSource(GLOVES_SHEET_B64),
     StarsSheet: new ImageSource(STARS_SHEET_B64),
     StanleySheet: new ImageSource(STANLEY_SHEET_B64),
+    GoalNetsSheet: new ImageSource(GOALNETS_SHEET_B64),
     PunchHiSound: new Sound(SOUND_PUNCHHI_B64),
     PunchLowSound: new Sound(SOUND_PUNCHLOW_B64)
 });
@@ -27,6 +29,8 @@ export const STAR_WIDTH = 36;
 export const STAR_HEIGHT = 36;
 export const STANLEY_WIDTH = 32;
 export const STANLEY_HEIGHT = 64;
+export const NET_WIDTH = 49;
+export const NET_HEIGHT = 31;
 
 export const HIT_RANGE = 50;
 export const HITBOX_WIDTH = 40;
