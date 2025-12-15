@@ -1,4 +1,5 @@
 
+
 import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite, Sound } from "excalibur";
 import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE } from "../constants";
 import { Player } from "./Player";
@@ -8,6 +9,7 @@ import { BloodParticle } from "./BloodParticle";
 import { GameSnapshot, GameState, EntitySnapshot } from "../types";
 import { NetworkManager } from "./NetworkManager";
 import { CameraManager } from "./CameraManager";
+import { ReplayManager } from "./ReplayManager";
 
 export interface GameResources {
     SpriteSheet: ImageSource;
@@ -27,6 +29,7 @@ export class HockeyGame extends Engine {
     public winner: 'PLAYER 1' | 'PLAYER 2' | null = null;
     public resources: GameResources;
     public cameraManager: CameraManager;
+    public replayManager: ReplayManager;
 
     public koTimer: number = 0;
     public glovesLanded: boolean = false;
@@ -36,30 +39,21 @@ export class HockeyGame extends Engine {
     public networkManager: NetworkManager | null = null;
     private isHost: boolean = false;
     public opponentDisconnected: boolean = false;
-
-    // Replay System
-    public isReplaying: boolean = false;
-    private replayBuffer: GameSnapshot[] = [];
-    private replayIndex: number = 0;
-    private playbackSpeed: number = 1;
-    private currentFrameSounds: ('high' | 'low')[] = [];
-    
-    // Replay Rendering
-    private replayPool: Actor[] = [];
-    private bloodRect!: Rectangle;
-    private gloveSpriteP1!: Sprite;
-    private gloveSpriteP2!: Sprite;
     
     // Settings
-    private sfxVolume: number = 0.15;
+    public sfxVolume: number = 0.15;
+
+    public get isReplaying(): boolean {
+        return this.replayManager.isReplaying;
+    }
 
     private handlePostUpdate = (evt: PostUpdateEvent) => {
-        if (this.isReplaying) {
-            this.handleReplayLogic();
+        if (this.replayManager.isReplaying) {
+            this.replayManager.update();
         } else {
             // Only update game logic if players are initialized
             if (this.player1 && this.player2) {
-                this.recordReplayFrame();
+                this.replayManager.recordFrame();
                 this.checkGameOver();
                 
                 if (this.isGameOver && this.winner) {
@@ -90,6 +84,7 @@ export class HockeyGame extends Engine {
         super(options);
         this.resources = getResources();
         this.cameraManager = new CameraManager(this);
+        this.replayManager = new ReplayManager(this);
     }
 
     async start() {
@@ -104,17 +99,8 @@ export class HockeyGame extends Engine {
         ]);
         loader.suppressPlayButton = true;
         
-        this.bloodRect = new Rectangle({ width: 3, height: 3, color: Color.White });
-        
         return super.start(loader).then(() => {
-            const gloveSheet = SpriteSheet.fromImageSource({
-                image: this.resources.GlovesSheet,
-                grid: { rows: 1, columns: 2, spriteWidth: GLOVES_WIDTH, spriteHeight: GLOVES_HEIGHT }
-            });
-            this.gloveSpriteP1 = gloveSheet.getSprite(0, 0);
-            this.gloveSpriteP1.scale = vec(SCALE, SCALE);
-            this.gloveSpriteP2 = gloveSheet.getSprite(1, 0);
-            this.gloveSpriteP2.scale = vec(SCALE, SCALE);
+            this.replayManager.init();
         });
     }
 
@@ -130,14 +116,14 @@ export class HockeyGame extends Engine {
     }
 
     public playHitSound(type: 'high' | 'low') {
-        if (!this.isReplaying) {
+        if (!this.replayManager.isReplaying) {
             const vol = this.sfxVolume;
             if (type === 'high') {
                 this.resources.PunchHiSound.play(vol);
             } else {
                 this.resources.PunchLowSound.play(vol);
             }
-            this.currentFrameSounds.push(type);
+            this.replayManager.recordSound(type);
         }
     }
 
@@ -247,13 +233,7 @@ export class HockeyGame extends Engine {
         this.glovesLanded = false;
         this.winTriggered = false;
         
-        this.isReplaying = false;
-        this.replayBuffer = [];
-        this.replayIndex = 0;
-        this.playbackSpeed = 1;
-        this.replayPool = []; 
-        this.currentFrameSounds = [];
-
+        this.replayManager.reset();
         this.cameraManager.reset();
 
         const centerY = 400 / 2 + 50; 
@@ -297,149 +277,15 @@ export class HockeyGame extends Engine {
     // --- REPLAY LOGIC ---
 
     public toggleReplay(enable: boolean) {
-        this.isReplaying = enable;
-        if (enable) {
-            this.replayIndex = 0;
-            this.playbackSpeed = 1;
-            
-            (this as any).currentScene.actors.forEach((actor: any) => {
-                if (actor instanceof BloodParticle || actor instanceof Gloves) {
-                    (actor as any).kill();
-                }
-            });
-        } else {
-            if (this.replayBuffer.length > 0) {
-                this.applySnapshot(this.replayBuffer[this.replayBuffer.length - 1]);
-            }
-        }
+        this.replayManager.toggleReplay(enable);
     }
 
     public setPlaybackSpeed(speed: number) {
-        this.playbackSpeed = speed;
+        this.replayManager.setPlaybackSpeed(speed);
     }
 
     public seekTo(percent: number) {
-        if (!this.replayBuffer.length) return;
-        this.replayIndex = Math.floor(Math.max(0, Math.min(1, percent)) * (this.replayBuffer.length - 1));
-    }
-
-    private recordReplayFrame() {
-        if (this.isGameOver && this.koTimer > 5000) return;
-        if (!this.player1 || !this.player2) return;
-
-        const entities: EntitySnapshot[] = [];
-        
-        (this as any).currentScene.actors.forEach((actor: any) => {
-            if (actor instanceof BloodParticle) {
-                 entities.push({
-                     type: 'blood',
-                     x: (actor as any).pos.x,
-                     y: (actor as any).pos.y,
-                     scale: (actor as any).scale.x,
-                     color: (actor as any).color.toHex(),
-                     zIndex: (actor as any).z
-                 });
-            } else if (actor instanceof Gloves) {
-                 entities.push({
-                     type: 'glove',
-                     x: (actor as any).pos.x,
-                     y: (actor as any).pos.y,
-                     scale: (actor as any).scale.x,
-                     zIndex: (actor as any).z,
-                     isPlayer1: (actor as Gloves).isPlayer1
-                 });
-            }
-        });
-
-        this.replayBuffer.push({
-            p1: this.player1.getSnapshot(),
-            p2: this.player2.getSnapshot(),
-            cameraPos: { x: (this as any).currentScene.camera.pos.x, y: (this as any).currentScene.camera.pos.y },
-            cameraZoom: (this as any).currentScene.camera.zoom,
-            entities: entities,
-            sounds: [...this.currentFrameSounds]
-        });
-        this.currentFrameSounds = [];
-    }
-
-    private handleReplayLogic() {
-        if (this.replayBuffer.length === 0) return;
-
-        const prevIndex = Math.floor(this.replayIndex);
-        this.replayIndex += this.playbackSpeed;
-
-        if (this.replayIndex >= this.replayBuffer.length - 1) {
-            this.replayIndex = this.replayBuffer.length - 1;
-            this.playbackSpeed = 0; 
-        }
-        if (this.replayIndex < 0) {
-            this.replayIndex = 0;
-            this.playbackSpeed = 0; 
-        }
-
-        const currentIndex = Math.floor(this.replayIndex);
-
-        // Play sounds if we advanced forward
-        if (this.playbackSpeed > 0 && currentIndex > prevIndex) {
-            for (let i = prevIndex + 1; i <= currentIndex; i++) {
-                const f = this.replayBuffer[i];
-                if (f && f.sounds) {
-                    const vol = this.sfxVolume;
-                    f.sounds.forEach(s => {
-                        if (s === 'high') this.resources.PunchHiSound.play(vol);
-                        else if (s === 'low') this.resources.PunchLowSound.play(vol);
-                    });
-                }
-            }
-        }
-
-        const frame = this.replayBuffer[currentIndex];
-        if (frame) {
-            this.applySnapshot(frame);
-        }
-    }
-
-    private applySnapshot(frame: GameSnapshot) {
-        if (!this.player1 || !this.player2) return;
-
-        this.player1.setFromSnapshot(frame.p1);
-        this.player2.setFromSnapshot(frame.p2);
-        (this as any).currentScene.camera.pos = new Vector(frame.cameraPos.x, frame.cameraPos.y);
-        (this as any).currentScene.camera.zoom = frame.cameraZoom;
-
-        let poolIndex = 0;
-
-        for (const ent of frame.entities) {
-            let actor: Actor;
-
-            if (poolIndex >= this.replayPool.length) {
-                actor = new Actor({ anchor: vec(0.5, 0.5) }); 
-                (this as any).currentScene.add(actor);
-                this.replayPool.push(actor);
-            } else {
-                actor = this.replayPool[poolIndex];
-            }
-
-            (actor as any).pos.x = ent.x;
-            (actor as any).pos.y = ent.y;
-            (actor as any).z = ent.zIndex;
-            (actor as any).scale = vec(ent.scale, ent.scale);
-            (actor as any).graphics.visible = true;
-
-            if (ent.type === 'blood') {
-                (actor as any).graphics.use(this.bloodRect);
-                (actor as any).color = Color.fromHex(ent.color!); 
-            } else if (ent.type === 'glove') {
-                (actor as any).graphics.use(ent.isPlayer1 ? this.gloveSpriteP1 : this.gloveSpriteP2);
-                (actor as any).color = Color.White;
-            }
-
-            poolIndex++;
-        }
-
-        for (let i = poolIndex; i < this.replayPool.length; i++) {
-            (this.replayPool[i] as any).graphics.visible = false;
-        }
+        this.replayManager.seekTo(percent);
     }
 
     private checkGameOver() {
@@ -469,8 +315,8 @@ export class HockeyGame extends Engine {
 
     private updateUI() {
         if (this.uiCallback) {
-            const bufferLen = this.replayBuffer.length;
-            const progress = bufferLen > 0 ? this.replayIndex / bufferLen : 0;
+            const bufferLen = this.replayManager.replayBuffer.length;
+            const progress = bufferLen > 0 ? this.replayManager.replayIndex / bufferLen : 0;
 
             this.uiCallback({
                 p1Health: this.player1?.health ?? 5,
@@ -480,9 +326,9 @@ export class HockeyGame extends Engine {
                 gameOver: this.isGameOver,
                 showGameOver: this.isGameOver && this.koTimer > 3000,
                 winner: this.winner,
-                isReplaying: this.isReplaying,
+                isReplaying: this.replayManager.isReplaying,
                 replayProgress: progress,
-                replaySpeed: this.playbackSpeed,
+                replaySpeed: this.replayManager.playbackSpeed,
                 isMultiplayer: !!this.networkManager,
                 connectionStatus: this.networkManager ? 'connected' : 'disconnected',
                 roomId: this.networkManager ? '...' : undefined,
