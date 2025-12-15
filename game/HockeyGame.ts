@@ -17,8 +17,8 @@ export interface GameResources {
 }
 
 export class HockeyGame extends Engine {
-    private player1!: Player;
-    private player2!: Player;
+    private player1?: Player;
+    private player2?: Player;
     private uiCallback?: (state: GameState) => void;
     public isGameOver: boolean = false;
     private winner: 'PLAYER 1' | 'PLAYER 2' | null = null;
@@ -47,18 +47,24 @@ export class HockeyGame extends Engine {
     private bloodRect!: Rectangle;
     private gloveSpriteP1!: Sprite;
     private gloveSpriteP2!: Sprite;
+    
+    // Settings
+    private sfxVolume: number = 0.15;
 
     private handlePostUpdate = (evt: PostUpdateEvent) => {
         if (this.isReplaying) {
             this.handleReplayLogic();
         } else {
-            this.recordReplayFrame();
-            this.checkGameOver();
-            this.updateCamera(evt.elapsed);
-            
-            // Multiplayer Sync
-            if (this.networkManager) {
-                this.broadcastState();
+            // Only update game logic if players are initialized
+            if (this.player1 && this.player2) {
+                this.recordReplayFrame();
+                this.checkGameOver();
+                this.updateCamera(evt.elapsed);
+                
+                // Multiplayer Sync
+                if (this.networkManager) {
+                    this.broadcastState();
+                }
             }
         }
         this.updateUI();
@@ -106,14 +112,21 @@ export class HockeyGame extends Engine {
     setupGame(uiCallback: (state: GameState) => void) {
         this.uiCallback = uiCallback;
         // Do not auto-reset here, wait for setupNetwork or manual reset call
+        this.updateUI();
+    }
+    
+    public setSFXVolume(volume: number) {
+        this.sfxVolume = Math.max(0, Math.min(1, volume));
+        this.updateUI();
     }
 
     public playHitSound(type: 'high' | 'low') {
         if (!this.isReplaying) {
+            const vol = this.sfxVolume;
             if (type === 'high') {
-                this.resources.PunchHiSound.play(0.5);
+                this.resources.PunchHiSound.play(vol);
             } else {
-                this.resources.PunchLowSound.play(0.5);
+                this.resources.PunchLowSound.play(vol);
             }
             this.currentFrameSounds.push(type);
         }
@@ -126,18 +139,23 @@ export class HockeyGame extends Engine {
 
         // Setup Listener
         this.networkManager.onMessage = (msg) => {
+            // Check players existence before sync/hit
+            if (!this.player1 || !this.player2) return;
+
             if (msg.type === 'SYNC') {
                 // Determine which player payload belongs to
                 // If I am Host (P1), msg is from P2.
                 // If I am Client (P2), msg is from P1.
                 const targetPlayer = this.isHost ? this.player2 : this.player1;
-                targetPlayer.syncFromNetwork(msg.payload);
+                targetPlayer?.syncFromNetwork(msg.payload);
             } else if (msg.type === 'HIT') {
                 const targetP1 = msg.payload.targetP1;
                 const damageType = msg.payload.damageType;
                 
                 const victim = targetP1 ? this.player1 : this.player2;
                 const attacker = targetP1 ? this.player2 : this.player1;
+
+                if (!victim || !attacker) return;
 
                 // Apply damage
                 victim.takeDamage(damageType);
@@ -218,11 +236,6 @@ export class HockeyGame extends Engine {
         this.glovesLanded = false;
         this.winTriggered = false;
         
-        // Don't reset opponentDisconnected here, as it's a persistent state until the session ends
-        // But if we are manually restarting (via menu), we might want to. 
-        // For now, assume restartGame is called when we want to play again, which implies connection is good.
-        // However, if disconnect happened, we probably force a page reload via UI, so this reset logic is fine.
-        
         this.isReplaying = false;
         this.replayBuffer = [];
         this.replayIndex = 0;
@@ -302,6 +315,7 @@ export class HockeyGame extends Engine {
 
     private recordReplayFrame() {
         if (this.isGameOver && this.koTimer > 5000) return;
+        if (!this.player1 || !this.player2) return;
 
         const entities: EntitySnapshot[] = [];
         
@@ -327,17 +341,15 @@ export class HockeyGame extends Engine {
             }
         });
 
-        if (this.player1 && this.player2) {
-            this.replayBuffer.push({
-                p1: this.player1.getSnapshot(),
-                p2: this.player2.getSnapshot(),
-                cameraPos: { x: (this as any).currentScene.camera.pos.x, y: (this as any).currentScene.camera.pos.y },
-                cameraZoom: (this as any).currentScene.camera.zoom,
-                entities: entities,
-                sounds: [...this.currentFrameSounds]
-            });
-            this.currentFrameSounds = [];
-        }
+        this.replayBuffer.push({
+            p1: this.player1.getSnapshot(),
+            p2: this.player2.getSnapshot(),
+            cameraPos: { x: (this as any).currentScene.camera.pos.x, y: (this as any).currentScene.camera.pos.y },
+            cameraZoom: (this as any).currentScene.camera.zoom,
+            entities: entities,
+            sounds: [...this.currentFrameSounds]
+        });
+        this.currentFrameSounds = [];
     }
 
     private handleReplayLogic() {
@@ -362,9 +374,10 @@ export class HockeyGame extends Engine {
             for (let i = prevIndex + 1; i <= currentIndex; i++) {
                 const f = this.replayBuffer[i];
                 if (f && f.sounds) {
+                    const vol = this.sfxVolume;
                     f.sounds.forEach(s => {
-                        if (s === 'high') this.resources.PunchHiSound.play(0.5);
-                        else if (s === 'low') this.resources.PunchLowSound.play(0.5);
+                        if (s === 'high') this.resources.PunchHiSound.play(vol);
+                        else if (s === 'low') this.resources.PunchLowSound.play(vol);
                     });
                 }
             }
@@ -377,6 +390,8 @@ export class HockeyGame extends Engine {
     }
 
     private applySnapshot(frame: GameSnapshot) {
+        if (!this.player1 || !this.player2) return;
+
         this.player1.setFromSnapshot(frame.p1);
         this.player2.setFromSnapshot(frame.p2);
         (this as any).currentScene.camera.pos = new Vector(frame.cameraPos.x, frame.cameraPos.y);
@@ -506,6 +521,8 @@ export class HockeyGame extends Engine {
     }
 
     private checkGameOver() {
+        if (!this.player1 || !this.player2) return;
+
         if (!this.isGameOver) {
             if (this.player1.state === 'down' || this.player1.state === 'falling') {
                 this.isGameOver = true;
@@ -534,10 +551,10 @@ export class HockeyGame extends Engine {
             const progress = bufferLen > 0 ? this.replayIndex / bufferLen : 0;
 
             this.uiCallback({
-                p1Health: this.player1.health,
-                p2Health: this.player2.health,
-                p1State: this.player1.state.toUpperCase().replace('_', ' '),
-                p2State: this.player2.state.toUpperCase().replace('_', ' '),
+                p1Health: this.player1?.health ?? 5,
+                p2Health: this.player2?.health ?? 5,
+                p1State: this.player1?.state.toUpperCase().replace('_', ' ') ?? 'READY',
+                p2State: this.player2?.state.toUpperCase().replace('_', ' ') ?? 'READY',
                 gameOver: this.isGameOver,
                 showGameOver: this.isGameOver && this.koTimer > 3000,
                 winner: this.winner,
@@ -548,7 +565,8 @@ export class HockeyGame extends Engine {
                 connectionStatus: this.networkManager ? 'connected' : 'disconnected',
                 roomId: this.networkManager ? '...' : undefined,
                 isHost: this.isHost,
-                opponentDisconnected: this.opponentDisconnected
+                opponentDisconnected: this.opponentDisconnected,
+                sfxVolume: this.sfxVolume
             });
         }
     }

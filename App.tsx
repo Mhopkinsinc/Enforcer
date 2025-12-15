@@ -23,10 +23,11 @@ const App: React.FC = () => {
     replaySpeed: 1,
     isMultiplayer: false,
     connectionStatus: 'disconnected',
-    opponentDisconnected: false
+    opponentDisconnected: false,
+    sfxVolume: 0.15
   });
 
-  const [menuState, setMenuState] = useState<'main' | 'host' | 'join' | 'game'>('main');
+  const [menuState, setMenuState] = useState<'main' | 'host' | 'join' | 'game' | 'settings'>('main');
   const [roomId, setRoomId] = useState('');
   const [joinId, setJoinId] = useState('');
 
@@ -141,6 +142,16 @@ const App: React.FC = () => {
       }
   };
 
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const vol = parseFloat(e.target.value);
+      // Update local state immediately for UI responsiveness
+      setGameState(prev => ({ ...prev, sfxVolume: vol }));
+      // Update game engine
+      if (gameRef.current) {
+          gameRef.current.setSFXVolume(vol);
+      }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen font-sans">
       <h1 className="text-4xl mb-4 text-[#e94560] drop-shadow-md font-bold">
@@ -159,7 +170,7 @@ const App: React.FC = () => {
         {menuState !== 'game' && (
             <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-center z-20">
                 {menuState === 'main' && (
-                    <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-4 items-center">
                         <button onClick={startLocalGame} className="bg-[#4ecdc4] text-[#1a1a2e] px-8 py-3 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition">
                             LOCAL 2 PLAYER
                         </button>
@@ -171,6 +182,9 @@ const App: React.FC = () => {
                                 JOIN ONLINE
                             </button>
                         </div>
+                        <button onClick={() => setMenuState('settings')} className="text-gray-400 hover:text-white mt-4 font-bold tracking-widest text-sm border-b border-transparent hover:border-white transition-all">
+                             ⚙️ SETTINGS
+                        </button>
                     </div>
                 )}
 
@@ -200,6 +214,43 @@ const App: React.FC = () => {
                              <button onClick={() => setMenuState('main')} className="text-gray-400 hover:text-white">Back</button>
                              <button onClick={handleJoin} className="bg-[#4ecdc4] text-[#1a1a2e] px-6 py-2 rounded font-bold hover:bg-[#3dbdb4]">
                                 CONNECT
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {menuState === 'settings' && (
+                    <div className="flex flex-col items-center gap-6 p-8 bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px]">
+                        <h2 className="text-3xl text-[#e94560] font-bold tracking-wider">SETTINGS</h2>
+                        
+                        <div className="w-full">
+                            <label className="flex justify-between text-[#4ecdc4] mb-3 font-bold text-lg">
+                                <span>SFX VOLUME</span>
+                                <span>{Math.round(gameState.sfxVolume * 100)}%</span>
+                            </label>
+                            <input 
+                                type="range" 
+                                min="0" 
+                                max="1" 
+                                step="0.05"
+                                value={gameState.sfxVolume}
+                                onChange={handleVolumeChange}
+                                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560] hover:accent-[#ff6b81]"
+                            />
+                        </div>
+
+                        <div className="flex gap-4 w-full">
+                            <button 
+                                onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} 
+                                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold transition-colors"
+                            >
+                                🔊 TEST
+                            </button>
+                            <button 
+                                onClick={() => setMenuState('main')} 
+                                className="flex-1 bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-2 rounded font-bold transition-colors"
+                            >
+                                DONE
                             </button>
                         </div>
                     </div>
@@ -255,6 +306,9 @@ const App: React.FC = () => {
                             DISCONNECT
                         </button>
                     )}
+                    <button onClick={() => setMenuState('main')} className="text-sm text-gray-400 hover:text-white mt-2 underline">
+                        MAIN MENU
+                    </button>
                  </div>
             </div>
         )}

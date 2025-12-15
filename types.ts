@@ -30,6 +30,8 @@ export interface GameState {
     roomId?: string;
     isHost?: boolean;
     opponentDisconnected: boolean;
+    // Audio
+    sfxVolume: number;
 }
 
 export interface PlayerSnapshot {
