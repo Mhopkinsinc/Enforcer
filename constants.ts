@@ -9,6 +9,7 @@ import { GOALNETS_SHEET_B64 } from "./game/sprites/netsspritesheet";
 import { SOUND_PUNCHHI_B64 } from "./game/sfx/punchhisound";
 import { SOUND_PUNCHLOW_B64 } from "./game/sfx/punchlowsound";
 import { Framer_SHEET_B64 } from "./game/sprites/framersheet";
+import { Rink_SHEET_B64 } from "./game/sprites/rinksheet";
 
 export const getResources = () => ({
     SpriteSheet: new ImageSource(SPRITE_SHEET_B64),
@@ -18,7 +19,8 @@ export const getResources = () => ({
     GoalNetsSheet: new ImageSource(GOALNETS_SHEET_B64),
     PunchHiSound: new Sound(SOUND_PUNCHHI_B64),
     PunchLowSound: new Sound(SOUND_PUNCHLOW_B64),
-    FramerSheet: new ImageSource(Framer_SHEET_B64)
+    FramerSheet: new ImageSource(Framer_SHEET_B64),
+    RinkSheet: new ImageSource(Rink_SHEET_B64)
 });
 
 // --- Config ---
@@ -33,6 +35,8 @@ export const STANLEY_WIDTH = 32;
 export const STANLEY_HEIGHT = 64;
 export const NET_WIDTH = 49;
 export const NET_HEIGHT = 31;
+export const RINK_WIDTH = 267;
+export const RINK_HEIGHT = 88;
 export const FRAMER_TILE_SIZE = 8;
 
 export const HIT_RANGE = 50;

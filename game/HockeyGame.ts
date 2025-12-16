@@ -10,6 +10,7 @@ import { NetworkManager } from "./NetworkManager";
 import { CameraManager } from "./CameraManager";
 import { ReplayManager } from "./ReplayManager";
 import { Framer } from "./Framer";
+import { Rink } from "./Rink";
 
 export interface GameResources {
     SpriteSheet: ImageSource;
@@ -20,6 +21,7 @@ export interface GameResources {
     PunchHiSound: Sound;
     PunchLowSound: Sound;
     FramerSheet: ImageSource;
+    RinkSheet: ImageSource;
 }
 
 export class HockeyGame extends Engine {
@@ -97,7 +99,8 @@ export class HockeyGame extends Engine {
             this.resources.GoalNetsSheet,
             this.resources.PunchHiSound,
             this.resources.PunchLowSound,
-            this.resources.FramerSheet
+            this.resources.FramerSheet,
+            this.resources.RinkSheet
         ]);
         loader.suppressPlayButton = true;
         
@@ -166,7 +169,7 @@ export class HockeyGame extends Engine {
 
                 // Blood
                 if (damageType === 'high') {
-                    const amount = 6 + Math.floor(Math.random() * 4);
+                    const amount = 6 + Math.floor(Math.random() * 4); 
                     for (let i = 0; i < amount; i++) {
                         const spawnX = (victim as any).pos.x;
                         const spawnY = (victim as any).pos.y - 70 + (Math.random() * 20 - 10);
@@ -225,9 +228,13 @@ export class HockeyGame extends Engine {
     private reset() {
         ((this as any).currentScene as any).clear();
 
+        // Add Rink background
+        const rink = new Rink(0, 0);
+        ((this as any).currentScene as any).add(rink);
+
         // Add Net to background (center X, somewhat high Y to look like background)
-        const net = new Net(400, 50);
-        ((this as any).currentScene as any).add(net);
+        //const net = new Net(400, 50);
+        //((this as any).currentScene as any).add(net);
 
         // Add P1 HUD Framer (bottom left)
         const p1Hud = new Framer(110, 390, 4, 3);
