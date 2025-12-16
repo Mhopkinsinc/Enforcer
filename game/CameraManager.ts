@@ -49,9 +49,10 @@ export class CameraManager {
                 targetZoom = 3.5;
                 
                 const dir = ((loser as any).pos.x < ((opponent as any)?.pos.x ?? 0)) ? 1 : -1;
-                targetX = (loser as any).pos.x + (25 * dir);
+                targetX = (loser as any).pos.x + (-25 * dir);
                 
-                targetY = (loser as any).pos.y - 50;
+                // Adjusted to focus lower (on the ground) for fallen player
+                targetY = (loser as any).pos.y - 20;                
             } else {
                 targetZoom = 1.0;
                 targetX = 400;

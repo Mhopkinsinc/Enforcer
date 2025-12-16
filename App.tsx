@@ -51,6 +51,9 @@ const App: React.FC = () => {
         game.setupGame((state) => {
             setGameState({ ...state });
         });
+        
+        // Enable debug mode to see hitboxes
+        //game.toggleDebug();
     });
 
     gameRef.current = game;
