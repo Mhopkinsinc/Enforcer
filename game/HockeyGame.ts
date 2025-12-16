@@ -59,7 +59,8 @@ export class HockeyGame extends Engine {
                 this.replayManager.recordFrame();
                 this.checkGameOver();
                 
-                if (this.isGameOver && this.winner) {
+                // Only increment KO timer if the loser has landed (slow motion is done)
+                if (this.isGameOver && this.winner && this.timescale >= 1.0) {
                     this.koTimer += evt.elapsed;
                 }
 
@@ -227,6 +228,7 @@ export class HockeyGame extends Engine {
 
     private reset() {
         ((this as any).currentScene as any).clear();
+        this.timescale = 1.0;
 
         // Add Rink background
         const rink = new Rink(0, 0);
@@ -309,6 +311,11 @@ export class HockeyGame extends Engine {
         if (!this.player1 || !this.player2) return;
 
         if (!this.isGameOver) {
+            // Start slow motion if someone is falling
+            if (this.player1.state === 'falling' || this.player2.state === 'falling') {
+                this.timescale = 0.25;
+            }
+
             if (this.player1.state === 'down' || this.player1.state === 'falling') {
                 this.isGameOver = true;
                 this.winner = 'PLAYER 2';
@@ -318,8 +325,17 @@ export class HockeyGame extends Engine {
             }
         }
 
+        // Restore normal speed when the loser hits the ground (state 'down')
+        if (this.isGameOver && this.timescale < 1.0) {
+            const loser = this.winner === 'PLAYER 1' ? this.player2 : this.player1;
+            if (loser && loser.state === 'down') {
+                this.timescale = 1.0;
+            }
+        }
+
         if (this.isGameOver && !this.winTriggered && this.winner) {
-            if (this.koTimer > 1000) {
+            // Wait for fall (slow motion) + a moment on ground before showing win pose
+            if (this.koTimer > 500) {
                 this.winTriggered = true;
                 if (this.winner === 'PLAYER 1') {
                     this.player1.setState('win');

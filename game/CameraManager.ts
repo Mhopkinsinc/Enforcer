@@ -37,13 +37,16 @@ export class CameraManager {
         let targetX = 400;
         let targetY = SCREEN_HEIGHT / 2;
 
+        const loser = this.game.winner === 'PLAYER 2' ? p1 : p2;
+        const isFalling = loser?.state === 'falling';
+
         if (!this.game.glovesLanded) {
              targetZoom = 1.0;
              targetX = 400;
              targetY = 200;
-        } else if (this.game.isGameOver && this.game.winner) {
-            const loser = this.game.winner === 'PLAYER 2' ? p1 : p2;
-            const opponent = loser.opponent;
+        } else if (this.game.isGameOver && this.game.winner && !isFalling) {
+            // KO Zoom Phase
+            const opponent = loser!.opponent;
 
             if (this.game.koTimer < 2000) {
                 targetZoom = 3.5;
@@ -59,6 +62,7 @@ export class CameraManager {
                 targetY = 200;
             }
         } else {
+            // Standard Tracking Camera
             const pos1 = (p1 as any).pos.x;
             const pos2 = (p2 as any).pos.x;
             const midpoint = (pos1 + pos2) / 2;
