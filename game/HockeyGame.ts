@@ -230,10 +230,12 @@ export class HockeyGame extends Engine {
         ((this as any).currentScene as any).add(net);
 
         // Add P1 HUD Framer (bottom left)
-        // 9 cols (216px) x 4 rows (96px)
-        // Pos: Bottom Left (x=128, y=332) (centered anchor)
         const p1Hud = new Framer(110, 390, 4, 3);
         ((this as any).currentScene as any).add(p1Hud);
+
+        // Add P2 HUD Framer (bottom right)
+        const p2Hud = new Framer(790, 390, 4, 3);
+        ((this as any).currentScene as any).add(p2Hud);
 
         this.isGameOver = false;
         this.winner = null;
