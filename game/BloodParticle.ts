@@ -5,13 +5,14 @@ export class BloodParticle extends Actor {
     private velocity: Vector;
     private zVelocity: number; // Simulated depth velocity
     private currentZ: number = 0; 
-    private wallZ: number; // Distance to the back wall (glass/boards)
+    private targetZ: number; // Distance to wall (positive) or screen (negative)
     
     private gravity: number = 800; // Slightly lower gravity for better arcs
     private floorY: number;
     private landed: boolean = false;
+    private toCamera: boolean = false;
 
-    constructor(x: number, y: number, direction: number) {
+    constructor(x: number, y: number, direction: number, toCamera: boolean = false) {
         super({
             pos: vec(x, y),
             width: 3,
@@ -20,27 +21,50 @@ export class BloodParticle extends Actor {
             z: 20 // Start in front of players
         });
 
-        // 1. Initial Velocity
-        // X: Direction of punch + scatter. Increased range for "beside" coverage.
-        const vx = (Math.random() * 300 + 50) * direction; 
-        
-        // Y: Upwards (negative). Random arc.
-        const vy = -(Math.random() * 400 + 100); 
-        
-        this.velocity = vec(vx, vy);
+        this.toCamera = toCamera;
 
-        // 2. Depth Physics (Z)
-        // Simulate blood moving away from camera towards the boards/glass.
-        // Fast Z = hits wall (high up stains). Slow Z = hits floor.
-        this.zVelocity = Math.random() * 450 + 50; 
-        this.wallZ = 150; // Arbitrary depth unit where the wall exists
+        // 1. Initial Velocity
+        if (this.toCamera) {
+            // Explosive scatter for screen hits
+            // Widen spread to cover more screen area
+            const vx = (Math.random() * 1000 - 500); 
+            
+            // Adjusted to allow particles to go down (positive Y) as well as up
+            // Range is -500 to +300
+            const vy = (Math.random() * 800 - 500);
+            
+            this.velocity = vec(vx, vy);
+            
+            // Move TOWARDS camera (Negative Z)
+            this.zVelocity = -(Math.random() * 600 + 400); 
+            this.targetZ = -200; // Arbitrary "Screen" plane
+            this.gravity = 200; // Low gravity for flying at screen
+        } else {
+            // Standard sideways splatter
+            const vx = (Math.random() * 300 + 50) * direction; 
+            const vy = -(Math.random() * 400 + 100); 
+            this.velocity = vec(vx, vy);
+            
+            // Move AWAY from camera (Positive Z)
+            this.zVelocity = Math.random() * 450 + 50; 
+            this.targetZ = 150; // Wall plane
+        }
 
         // 3. Floor Setup
         this.floorY = 360 + (Math.random() * 20 - 10);
     }
 
     onPreUpdate(engine: Engine, delta: number) {
-        if (this.landed) return;
+        if (this.landed) {
+            // If stuck to camera, fade out over time
+            if (this.toCamera) {
+                this.graphics.opacity -= (delta / 1000) * 0.8; 
+                if (this.graphics.opacity <= 0) {
+                    this.kill();
+                }
+            }
+            return;
+        }
 
         const dt = delta / 1000;
 
@@ -54,31 +78,44 @@ export class BloodParticle extends Actor {
         // Move in Depth
         this.currentZ += this.zVelocity * dt;
 
-        // CHECK 1: Wall/Glass Collision (Background)
-        // If we reach the wall depth, we stick there regardless of height (Y)
-        if (this.currentZ >= this.wallZ) {
-            this.stickToSurface();
-            return;
-        }
-
-        // CHECK 2: Floor Collision
-        if ((this as any).pos.y >= this.floorY) {
-            (this as any).pos.y = this.floorY;
+        if (this.toCamera) {
+            // SCREEN HIT LOGIC
             
-            // Floor behavior (bounce/slide)
-            if (this.velocity.y > 50) {
-                // Splash scatter on floor
-                this.velocity.x = (Math.random() * 300 - 150); 
-                this.velocity.y *= -0.4; // Bounce
-            } else {
-                // Friction when sliding
-                this.velocity.y = 0;
-                this.velocity.x *= 0.8; 
+            // Perspective Scaling (Growing larger as it gets closer/more negative)
+            // Map 0 to targetZ -> Scale 1.0 to 1.5 (Very slight growth, keeping small size)
+            const progress = Math.min(Math.abs(this.currentZ) / Math.abs(this.targetZ), 1);
+            const scale = 1.0 + (progress * 0.5);
+            (this as any).scale = vec(scale, scale);
+
+            // Check collision with screen plane
+            if (this.currentZ <= this.targetZ) {
+                this.stickToSurface();
+            }
+        } else {
+            // WALL/FLOOR LOGIC
+
+            // Check collision with back wall
+            if (this.currentZ >= this.targetZ) {
+                this.stickToSurface();
+                return;
             }
 
-            // Stop if slow enough
-            if (Math.abs(this.velocity.y) < 10 && Math.abs(this.velocity.x) < 10) {
-                this.stickToSurface();
+            // Check floor collision
+            if ((this as any).pos.y >= this.floorY) {
+                (this as any).pos.y = this.floorY;
+                
+                // Floor behavior (bounce/slide)
+                if (this.velocity.y > 50) {
+                    this.velocity.x = (Math.random() * 300 - 150); 
+                    this.velocity.y *= -0.4; // Bounce
+                } else {
+                    this.velocity.y = 0;
+                    this.velocity.x *= 0.8; 
+                }
+
+                if (Math.abs(this.velocity.y) < 10 && Math.abs(this.velocity.x) < 10) {
+                    this.stickToSurface();
+                }
             }
         }
     }
@@ -90,15 +127,20 @@ export class BloodParticle extends Actor {
         
         // Visuals for dried/stuck blood
         (this as any).color = Color.fromHex('#7f1d1d'); // Darker dried blood color
-        (this as any).z = -1; // Move behind players
 
-        // Perspective scaling:
-        // Calculate how "deep" the particle is (0 to 1 ratio relative to wall distance)
-        // Particles further away (higher Z) should appear smaller.
-        const depthRatio = Math.min(Math.max(this.currentZ / this.wallZ, 0), 1);
-        
-        // Scale down from 1.0 (at front) to 0.4 (at back wall)
-        const perspectiveScale = 1.0 - (depthRatio * 0.6);
-        (this as any).scale = vec(perspectiveScale, perspectiveScale);
+        if (this.toCamera) {
+            (this as any).z = 9999; // Topmost UI layer
+            // Splash big on the lens
+            // Much smaller size: 1.0 to 2.0 scale (similar to fight particles)
+            const finalScale = 1.0 + Math.random();
+            (this as any).scale = vec(finalScale, finalScale);
+        } else {
+            (this as any).z = -1; // Move behind players for wall blood
+            
+            // Perspective scaling for back wall:
+            const depthRatio = Math.min(Math.max(this.currentZ / this.targetZ, 0), 1);
+            const perspectiveScale = 1.0 - (depthRatio * 0.6);
+            (this as any).scale = vec(perspectiveScale, perspectiveScale);
+        }
     }
 }

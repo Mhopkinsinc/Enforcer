@@ -243,7 +243,7 @@ export class HockeyGame extends Engine {
         ((this as any).currentScene as any).add(p1Hud);
 
         // Add P2 HUD Framer (bottom right)
-        const p2Hud = new Framer(790, 390, 4, 3);
+        const p2Hud = new Framer(790, 390, 5, 3);
         ((this as any).currentScene as any).add(p2Hud);
 
         this.isGameOver = false;

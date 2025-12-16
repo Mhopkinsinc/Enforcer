@@ -273,6 +273,7 @@ export class Player extends Actor {
                 right = k.isHeld(Keys.D);
                 high = k.wasPressed(Keys.J);
                 low = k.wasPressed(Keys.K);
+                low = k.wasPressed(Keys.K);
                 grab = k.wasPressed(Keys.L);
             } else {
                 left = k.isHeld(Keys.Left);
@@ -372,6 +373,9 @@ export class Player extends Actor {
                 }
             } else {
                 if (this.opponent.canBeHit()) {
+                    // Check if this is a finisher (opponent will die)
+                    const isFinisher = this.opponent.health - 1 <= 0;
+                    
                     this.opponent.takeDamage(hitType);
                     
                     const dir = (this as any).transform.pos.x < (this.opponent as any).transform.pos.x ? 1 : -1;
@@ -384,10 +388,16 @@ export class Player extends Actor {
 
                     if (hitType === 'high') {
                         const amount = 6 + Math.floor(Math.random() * 4); 
-                        for (let i = 0; i < amount; i++) {
+                        // Increase blood amount for finisher significantly
+                        const finalAmount = isFinisher ? amount * 10 : amount;
+                        
+                        for (let i = 0; i < finalAmount; i++) {
                             const spawnX = (this.opponent as any).pos.x;
                             const spawnY = (this.opponent as any).pos.y - 70 + (Math.random() * 20 - 10);
-                            const blood = new BloodParticle(spawnX, spawnY, dir);
+                            
+                            // If finisher, send ~60% of blood to camera
+                            const toCamera = isFinisher && (Math.random() < 0.6); 
+                            const blood = new BloodParticle(spawnX, spawnY, dir, toCamera);
                             (this as any).scene?.add(blood);
                         }
                     }
