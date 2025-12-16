@@ -124,7 +124,7 @@ export class Player extends Actor {
         const sprite = starSheet.getSprite(this.isPlayer1 ? 0 : 1, 0);
         if (sprite) {
             sprite.scale = vec(SCALE, SCALE);
-            (this as any).graphics.use(sprite);
+            star.graphics.use(sprite);
         }
 
         (this as any).addChild(star);
