@@ -1,5 +1,4 @@
 
-
 import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite, Sound } from "excalibur";
 import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE } from "../constants";
 import { Player } from "./Player";
@@ -10,6 +9,7 @@ import { GameSnapshot, GameState, EntitySnapshot } from "../types";
 import { NetworkManager } from "./NetworkManager";
 import { CameraManager } from "./CameraManager";
 import { ReplayManager } from "./ReplayManager";
+import { Framer } from "./Framer";
 
 export interface GameResources {
     SpriteSheet: ImageSource;
@@ -19,6 +19,7 @@ export interface GameResources {
     GoalNetsSheet: ImageSource;
     PunchHiSound: Sound;
     PunchLowSound: Sound;
+    FramerSheet: ImageSource;
 }
 
 export class HockeyGame extends Engine {
@@ -95,7 +96,8 @@ export class HockeyGame extends Engine {
             this.resources.StanleySheet,
             this.resources.GoalNetsSheet,
             this.resources.PunchHiSound,
-            this.resources.PunchLowSound
+            this.resources.PunchLowSound,
+            this.resources.FramerSheet
         ]);
         loader.suppressPlayButton = true;
         
@@ -226,6 +228,12 @@ export class HockeyGame extends Engine {
         // Add Net to background (center X, somewhat high Y to look like background)
         const net = new Net(400, 50);
         ((this as any).currentScene as any).add(net);
+
+        // Add P1 HUD Framer (bottom left)
+        // 9 cols (216px) x 4 rows (96px)
+        // Pos: Bottom Left (x=128, y=332) (centered anchor)
+        const p1Hud = new Framer(110, 390, 4, 3);
+        ((this as any).currentScene as any).add(p1Hud);
 
         this.isGameOver = false;
         this.winner = null;
