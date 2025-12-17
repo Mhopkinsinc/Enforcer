@@ -1,5 +1,5 @@
 
-import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite, Sound } from "excalibur";
+import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite, Sound, SpriteFont, Text, ScreenElement } from "excalibur";
 import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE } from "../constants";
 import { Player } from "./Player";
 import { Gloves } from "./Gloves";
@@ -22,6 +22,7 @@ export interface GameResources {
     PunchLowSound: Sound;
     FramerSheet: ImageSource;
     RinkSheet: ImageSource;
+    SmallFontSheet: ImageSource;
 }
 
 export class HockeyGame extends Engine {
@@ -33,6 +34,7 @@ export class HockeyGame extends Engine {
     public resources: GameResources;
     public cameraManager: CameraManager;
     public replayManager: ReplayManager;
+    private p2StateDisplay?: Text;
 
     public koTimer: number = 0;
     public glovesLanded: boolean = false;
@@ -86,7 +88,7 @@ export class HockeyGame extends Engine {
 
     constructor(options: EngineOptions) {
         super(options);
-        this.resources = getResources();
+        this.resources = getResources() as any;
         this.cameraManager = new CameraManager(this);
         this.replayManager = new ReplayManager(this);
     }
@@ -101,7 +103,8 @@ export class HockeyGame extends Engine {
             this.resources.PunchHiSound,
             this.resources.PunchLowSound,
             this.resources.FramerSheet,
-            this.resources.RinkSheet
+            this.resources.RinkSheet,
+            this.resources.SmallFontSheet
         ]);
         loader.suppressPlayButton = true;
         
@@ -112,7 +115,6 @@ export class HockeyGame extends Engine {
 
     setupGame(uiCallback: (state: GameState) => void) {
         this.uiCallback = uiCallback;
-        // Do not auto-reset here, wait for setupNetwork or manual reset call
         this.updateUI();
     }
     
@@ -138,15 +140,10 @@ export class HockeyGame extends Engine {
         this.isHost = isHost;
         this.opponentDisconnected = false;
 
-        // Setup Listener
         this.networkManager.onMessage = (msg) => {
-            // Check players existence before sync/hit
             if (!this.player1 || !this.player2) return;
 
             if (msg.type === 'SYNC') {
-                // Determine which player payload belongs to
-                // If I am Host (P1), msg is from P2.
-                // If I am Client (P2), msg is from P1.
                 const targetPlayer = this.isHost ? this.player2 : this.player1;
                 targetPlayer?.syncFromNetwork(msg.payload);
             } else if (msg.type === 'HIT') {
@@ -158,17 +155,13 @@ export class HockeyGame extends Engine {
 
                 if (!victim || !attacker) return;
 
-                // Apply damage
                 victim.takeDamage(damageType);
-                
-                // Knockback
                 const dir = (attacker as any).pos.x < (victim as any).pos.x ? 1 : -1;
                 victim.vx += dir * KNOCKBACK_FORCE;
 
                 this.shake(200, 5);
                 this.playHitSound(damageType);
 
-                // Blood
                 if (damageType === 'high') {
                     const amount = 6 + Math.floor(Math.random() * 4); 
                     for (let i = 0; i < amount; i++) {
@@ -184,7 +177,6 @@ export class HockeyGame extends Engine {
         };
 
         this.networkManager.onDisconnect = () => {
-            console.log("Opponent disconnected");
             this.opponentDisconnected = true;
             this.isGameOver = true;
             this.updateUI();
@@ -204,10 +196,7 @@ export class HockeyGame extends Engine {
 
     private broadcastState() {
         if (!this.player1 || !this.player2) return;
-
-        // Send MY player's state
         const localPlayer = this.isHost ? this.player1 : this.player2;
-        
         this.networkManager?.send({
             type: 'SYNC',
             payload: localPlayer.getSyncState()
@@ -216,7 +205,6 @@ export class HockeyGame extends Engine {
 
     restartGame() {
         this.reset();
-        
         if (this.networkManager) {
             this.networkManager.send({ type: 'RESTART', payload: {} });
         }
@@ -227,24 +215,59 @@ export class HockeyGame extends Engine {
     }
 
     private reset() {
-        ((this as any).currentScene as any).clear();
+        const scene = this.currentScene as Scene;
+        scene.clear();
         this.timescale = 1.0;
 
-        // Add Rink background
         const rink = new Rink(0, 0);
-        ((this as any).currentScene as any).add(rink);
+        scene.add(rink);
 
-        // Add Net to background (center X, somewhat high Y to look like background)
-        //const net = new Net(400, 50);
-        //((this as any).currentScene as any).add(net);
+        const p1Hud = new Framer(130, 390, 5, 3);
+        scene.add(p1Hud);
 
-        // Add P1 HUD Framer (bottom left)
-        const p1Hud = new Framer(110, 390, 4, 3);
-        ((this as any).currentScene as any).add(p1Hud);
-
-        // Add P2 HUD Framer (bottom right)
         const p2Hud = new Framer(790, 390, 5, 3);
-        ((this as any).currentScene as any).add(p2Hud);
+        scene.add(p2Hud);
+
+        // --- Custom SpriteFont Implementation ---
+        const fontSheet = SpriteSheet.fromImageSource({
+            image: this.resources.SmallFontSheet,
+            grid: {
+                rows: 3,
+                columns: 32,
+                spriteWidth: 8,
+                spriteHeight: 8
+            },
+            spacing: {
+                originOffset: { x: 0, y: 8 } // Skip row 1, start at row 2
+            }
+        });
+
+        const alphabet =
+                        " !\"#©%&'()✓+,-./0123456789:;<=>?" +
+                        "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_" +
+                        "`abcdefghijklmnopqrstuvwxyz{|}~■";
+
+        const smallSpriteFont = new SpriteFont({
+            alphabet,
+            caseInsensitive: false,
+            spriteSheet: fontSheet
+        });
+
+        // Initialize state display text
+        this.p2StateDisplay = new Text({
+            text: 'READY',
+            font: smallSpriteFont
+        });
+
+        // Use ScreenElement to make the text static and independent of camera zoom/pan
+        const fontActor = new ScreenElement({
+            pos: vec(730, 340), // Center of Player 2 HUD Framer
+            anchor: vec(0.5, 0.5),
+            z: 100
+        });
+        fontActor.graphics.use(this.p2StateDisplay);
+        scene.add(fontActor);
+        // ----------------------------------------
 
         this.isGameOver = false;
         this.winner = null;
@@ -260,17 +283,15 @@ export class HockeyGame extends Engine {
         this.player1 = new Player(250, centerY, true);
         this.player2 = new Player(550, centerY, false);
         
-        // Configure Local vs Network Control
         if (this.networkManager) {
             if (this.isHost) {
                 this.player1.isLocal = true;
-                this.player2.isLocal = false; // Controlled by network
+                this.player2.isLocal = false;
             } else {
-                this.player1.isLocal = false; // Controlled by network
+                this.player1.isLocal = false;
                 this.player2.isLocal = true;
             }
         } else {
-            // Local Multiplayer (Hotseat)
             this.player1.isLocal = true;
             this.player2.isLocal = true;
         }
@@ -278,22 +299,18 @@ export class HockeyGame extends Engine {
         this.player1.opponent = this.player2;
         this.player2.opponent = this.player1;
 
-        ((this as any).currentScene as any).add(this.player1);
-        ((this as any).currentScene as any).add(this.player2);
+        scene.add(this.player1);
+        scene.add(this.player2);
 
-        // Remove old listeners to prevent duplicates
-        ((this as any).currentScene as any).off('glovesDropped', this.onGlovesDropped);
-        ((this as any).currentScene as any).off('glovesLanded', this.onGlovesLanded);
+        scene.off('glovesDropped', this.onGlovesDropped);
+        scene.off('glovesLanded', this.onGlovesLanded);
 
-        // Add listeners
-        ((this as any).currentScene as any).on('glovesDropped', this.onGlovesDropped);
-        ((this as any).currentScene as any).on('glovesLanded', this.onGlovesLanded);
+        scene.on('glovesDropped', this.onGlovesDropped);
+        scene.on('glovesLanded', this.onGlovesLanded);
 
-        (this as any).off('postupdate', this.handlePostUpdate);
-        (this as any).on('postupdate', this.handlePostUpdate);
+        this.off('postupdate', this.handlePostUpdate);
+        this.on('postupdate', this.handlePostUpdate);
     }
-
-    // --- REPLAY LOGIC ---
 
     public toggleReplay(enable: boolean) {
         this.replayManager.toggleReplay(enable);
@@ -311,7 +328,6 @@ export class HockeyGame extends Engine {
         if (!this.player1 || !this.player2) return;
 
         if (!this.isGameOver) {
-            // Start slow motion if someone is falling
             if (this.player1.state === 'falling' || this.player2.state === 'falling') {
                 this.timescale = 0.25;
             }
@@ -325,7 +341,6 @@ export class HockeyGame extends Engine {
             }
         }
 
-        // Restore normal speed when the loser hits the ground (state 'down')
         if (this.isGameOver && this.timescale < 1.0) {
             const loser = this.winner === 'PLAYER 1' ? this.player2 : this.player1;
             if (loser && loser.state === 'down') {
@@ -334,7 +349,6 @@ export class HockeyGame extends Engine {
         }
 
         if (this.isGameOver && !this.winTriggered && this.winner) {
-            // Wait for fall (slow motion) + a moment on ground before showing win pose
             if (this.koTimer > 500) {
                 this.winTriggered = true;
                 if (this.winner === 'PLAYER 1') {
@@ -347,6 +361,11 @@ export class HockeyGame extends Engine {
     }
 
     private updateUI() {
+        // Update in-game Player 2 state text display
+        if (this.p2StateDisplay && this.player2) {
+            this.p2StateDisplay.text = this.player2.state.toUpperCase().replace('_', ' ');
+        }
+
         if (this.uiCallback) {
             const bufferLen = this.replayManager.replayBuffer.length;
             const progress = bufferLen > 0 ? this.replayManager.replayIndex / bufferLen : 0;

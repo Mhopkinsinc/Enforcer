@@ -1,7 +1,7 @@
 
 import { ImageSource, Sound } from "excalibur";
 import { AnimationState } from "./types";
-import { SPRITE_SHEET_B64 } from "./game/sprites/spritesheet";
+import { SPRITE_SHEET_B64 } from "./game/sprites/playerspritesheet";
 import { GLOVES_SHEET_B64 } from "./game/sprites/glovesspritesheet";
 import { STARS_SHEET_B64 } from "./game/sprites/starspritesheet";
 import { STANLEY_SHEET_B64 } from "./game/sprites/stanleycupspritesheet";
@@ -10,6 +10,7 @@ import { SOUND_PUNCHHI_B64 } from "./game/sfx/punchhisound";
 import { SOUND_PUNCHLOW_B64 } from "./game/sfx/punchlowsound";
 import { Framer_SHEET_B64 } from "./game/sprites/framersheet";
 import { Rink_SHEET_B64 } from "./game/sprites/rinksheet";
+import { SMALLFONT_SHEET_B64 } from "./game/sprites/smallfontsheet";
 
 export const getResources = () => ({
     SpriteSheet: new ImageSource(SPRITE_SHEET_B64),
@@ -20,7 +21,8 @@ export const getResources = () => ({
     PunchHiSound: new Sound(SOUND_PUNCHHI_B64),
     PunchLowSound: new Sound(SOUND_PUNCHLOW_B64),
     FramerSheet: new ImageSource(Framer_SHEET_B64),
-    RinkSheet: new ImageSource(Rink_SHEET_B64)
+    RinkSheet: new ImageSource(Rink_SHEET_B64),
+    SmallFontSheet: new ImageSource(SMALLFONT_SHEET_B64)
 });
 
 // --- Config ---
