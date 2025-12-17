@@ -134,13 +134,14 @@ export class Player extends Actor {
         const game = engine as unknown as HockeyGame;
         if (game.isReplaying) return; 
 
-        // If local, handle input. If network, input is handled via syncFromNetwork
+        // CRITICAL: Remote players should NOT run physics/collision logic locally.
+        // Doing so causes jitter as the local prediction fights with incoming sync packets.
         if (this.isLocal) {
             this.handleInput(engine);
+            this.applyPhysics();
+            this.checkCollisions();
         }
         
-        this.applyPhysics();
-        this.checkCollisions();
         this.updateAnimationLogic();
         this.updateGraphics();
     }
@@ -159,7 +160,7 @@ export class Player extends Actor {
     }
 
     public syncFromNetwork(data: SyncPayload) {
-        // Snap position (can add lerp later for smoothness)
+        // Authoritative snap from network
         (this as any).pos.x = data.x;
         (this as any).pos.y = data.y;
         this.vx = data.vx;
@@ -237,8 +238,6 @@ export class Player extends Actor {
             anim.reset();
             
             if (newState === 'win') {
-                // P1 starts at 3. P2 starts at 7. 
-                // Since we disable flip for P2, we use normal frame order.
                 const startFrame = this.isPlayer1 ? 3 : 7;
                 anim.goToFrame(startFrame);
             }
@@ -256,10 +255,6 @@ export class Player extends Actor {
         const game = engine as unknown as HockeyGame;
         const isMultiplayer = game.networkManager !== null;
 
-        // Controls Logic
-        // If single player: P1 uses WASD, P2 uses Arrows
-        // If multiplayer: Local player ALWAYS uses WASD (or arrows) mapped to their character
-
         let left = false;
         let right = false;
         let high = false;
@@ -273,7 +268,6 @@ export class Player extends Actor {
                 right = k.isHeld(Keys.D);
                 high = k.wasPressed(Keys.J);
                 low = k.wasPressed(Keys.K);
-                low = k.wasPressed(Keys.K);
                 grab = k.wasPressed(Keys.L);
             } else {
                 left = k.isHeld(Keys.Left);
@@ -284,7 +278,6 @@ export class Player extends Actor {
             }
         } else {
             // Online Multiplayer
-            // For better UX, allow the local user to use WASD/J-L regardless of which side they are on
             if (k.isHeld(Keys.A) || k.isHeld(Keys.Left)) left = true;
             if (k.isHeld(Keys.D) || k.isHeld(Keys.Right)) right = true;
             if (k.wasPressed(Keys.J) || k.wasPressed(Keys.Num1) || k.wasPressed(Keys.Numpad1)) high = true;
@@ -312,7 +305,6 @@ export class Player extends Actor {
         if (!this.opponent || this.state === 'down' || this.state === 'falling') return;
 
         const minDist = HITBOX_WIDTH;
-        // Check distance
         const dist = Math.abs((this as any).transform.pos.x - (this.opponent as any).transform.pos.x);
 
         if (dist < minDist) {
@@ -347,7 +339,6 @@ export class Player extends Actor {
              this.glovesDropped = true;
         }
 
-        // Only the Local Player calculates hits. We trust the client for now.
         if (this.isLocal && def.hitFrame !== undefined && currentFrameIndex === def.hitFrame && !this.hitDealt && this.opponent) {
              this.checkHit(def.hitType!);
         }
@@ -373,7 +364,6 @@ export class Player extends Actor {
                 }
             } else {
                 if (this.opponent.canBeHit()) {
-                    // Check if this is a finisher (opponent will die)
                     const isFinisher = this.opponent.health - 1 <= 0;
                     
                     this.opponent.takeDamage(hitType);
@@ -388,14 +378,11 @@ export class Player extends Actor {
 
                     if (hitType === 'high') {
                         const amount = 6 + Math.floor(Math.random() * 4); 
-                        // Increase blood amount for finisher significantly
                         const finalAmount = isFinisher ? amount * 10 : amount;
                         
                         for (let i = 0; i < finalAmount; i++) {
                             const spawnX = (this.opponent as any).pos.x;
                             const spawnY = (this.opponent as any).pos.y - 70 + (Math.random() * 20 - 10);
-                            
-                            // If finisher, send ~60% of blood to camera
                             const toCamera = isFinisher && (Math.random() < 0.6); 
                             const blood = new BloodParticle(spawnX, spawnY, dir, toCamera);
                             (this as any).scene?.add(blood);
@@ -405,8 +392,7 @@ export class Player extends Actor {
                 }
             }
 
-            // If Multiplayer and we hit successfully, tell the other player they got hit
-            if (isMultiplayer && hitSuccessful && hitType !== 'grab') { // Grab is anim state based, hits are damage based
+            if (isMultiplayer && hitSuccessful && hitType !== 'grab') {
                 game.sendHit(hitType as 'high' | 'low', !this.isPlayer1);
             }
         }
@@ -442,7 +428,6 @@ export class Player extends Actor {
         const anim = this.animations.get(this.state);
         if (anim) {
              if (this.state === 'win' && !this.isPlayer1) {
-                // Don't flip P2 for win, so rotation is consistent with frame order (Forward)
                 anim.flipHorizontal = false;
             } else {
                 anim.flipHorizontal = !this.facingRight;

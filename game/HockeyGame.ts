@@ -145,6 +145,12 @@ export class HockeyGame extends Engine {
         this.networkManager.onMessage = (msg) => {
             if (!this.player1 || !this.player2) return;
 
+            // If we are currently replaying, ignore SYNC and HIT packets.
+            // These would move the actors and fight with the replay manager.
+            if (this.isReplaying && (msg.type === 'SYNC' || msg.type === 'HIT')) {
+                return;
+            }
+
             if (msg.type === 'SYNC') {
                 const targetPlayer = this.isHost ? this.player2 : this.player1;
                 targetPlayer?.syncFromNetwork(msg.payload);
@@ -174,6 +180,7 @@ export class HockeyGame extends Engine {
                     }
                 }
             } else if (msg.type === 'RESTART') {
+                // Restarting is always allowed as it resets the state for both players
                 this.reset();
             }
         };
