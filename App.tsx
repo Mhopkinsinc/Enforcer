@@ -1,4 +1,5 @@
 
+import { THEME_SONG_B64 } from './game/sfx/music';
 import React, { useEffect, useRef, useState } from 'react';
 import { Engine, DisplayMode, Color } from 'excalibur';
 import { HockeyGame } from './game/HockeyGame';
@@ -9,6 +10,7 @@ const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<HockeyGame | null>(null);
   const networkRef = useRef<NetworkManager | null>(null);
+  const musicRef = useRef<HTMLAudioElement | null>(null);
 
   const [gameState, setGameState] = useState<GameState>({
     p1Health: 5,
@@ -55,9 +57,6 @@ const App: React.FC = () => {
             // Merge with previous state to preserve local settings like crtScanlines
             setGameState(prev => ({ ...prev, ...state }));
         });
-        
-        // Enable debug mode to see hitboxes
-        //game.toggleDebug();
     });
 
     gameRef.current = game;
@@ -68,6 +67,7 @@ const App: React.FC = () => {
 
         if (!game.isReplaying && game.isGameOver && (e.key === ' ' || e.key === 'Enter')) {
             game.restartGame();
+            playBase64Mp3();
         }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -77,12 +77,14 @@ const App: React.FC = () => {
       if ((game as any).stop) (game as any).stop();
       if ((game as any).dispose) (game as any).dispose();
       if (networkRef.current) networkRef.current.destroy();
+      if (musicRef.current) musicRef.current.pause();
     };
   }, []);
 
   const startLocalGame = () => {
       setMenuState('game');
       if (gameRef.current) gameRef.current.restartGame();
+      playBase64Mp3();
   };
 
   const handleHost = async () => {
@@ -97,6 +99,7 @@ const App: React.FC = () => {
               if (gameRef.current) {
                   gameRef.current.setupNetwork(net, true); // True = Host (P1)
               }
+              playBase64Mp3();
           };
 
           networkRef.current = net;
@@ -118,6 +121,7 @@ const App: React.FC = () => {
               if (gameRef.current) {
                   gameRef.current.setupNetwork(net, false); // False = Client (P2)
               }
+              playBase64Mp3();
           };
 
           networkRef.current = net;
@@ -149,10 +153,32 @@ const App: React.FC = () => {
       const vol = parseFloat(e.target.value);
       // Update local state immediately for UI responsiveness
       setGameState(prev => ({ ...prev, sfxVolume: vol }));
+      // Update music ref volume
+      if (musicRef.current) {
+          musicRef.current.volume = vol;
+      }
       // Update game engine
       if (gameRef.current) {
           gameRef.current.setSFXVolume(vol);
       }
+  };
+
+  const playBase64Mp3 = () => {
+    if (!THEME_SONG_B64) {
+      console.warn("Theme song base64 data is empty.");
+      return;
+    }
+    // Stop existing music
+    if (musicRef.current) {
+        musicRef.current.pause();
+        musicRef.current.currentTime = 0;
+    }
+
+    const audio = new Audio(`data:audio/mp3;base64,${THEME_SONG_B64}`);
+    audio.volume = gameState.sfxVolume;
+    audio.loop = false;
+    audio.play().catch(err => console.error("Error playing base64 audio:", err));
+    musicRef.current = audio;
   };
 
   const toggleSetting = (setting: 'crtScanlines' | 'crtFlicker' | 'crtVignette') => {
@@ -162,7 +188,7 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen font-sans">
       <h1 className="text-4xl mb-8 text-[#e94560] drop-shadow-md font-bold" style={{textShadow: "0 0 10px rgba(233,69,96,0.5)"}}>
-        🏒 HOCKEY FIGHT 🥊
+        HOCKEY FIGHT 🥊
       </h1>
 
       {/* TV CASE */}
@@ -284,16 +310,24 @@ const App: React.FC = () => {
                                     </label>
                                 </div>
 
-                                <div className="flex gap-4 w-full mt-2">
-                                    <button 
-                                        onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} 
-                                        className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold transition-colors"
-                                    >
-                                        🔊 TEST
-                                    </button>
+                                <div className="flex flex-col gap-2 w-full mt-2">
+                                    <div className="flex gap-4">
+                                      <button 
+                                          onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} 
+                                          className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold transition-colors"
+                                      >
+                                          🔊 TEST SFX
+                                      </button>
+                                      <button 
+                                          onClick={playBase64Mp3} 
+                                          className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold transition-colors"
+                                      >
+                                          🎵 PLAY SONG
+                                      </button>
+                                    </div>
                                     <button 
                                         onClick={() => setMenuState('main')} 
-                                        className="flex-1 bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-2 rounded font-bold transition-colors"
+                                        className="w-full bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-2 rounded font-bold transition-colors"
                                     >
                                         DONE
                                     </button>
