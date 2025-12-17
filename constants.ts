@@ -20,7 +20,8 @@ export const getResources = () => ({
     PunchHiSound: new Sound(SOUND_PUNCHHI_B64),
     PunchLowSound: new Sound(SOUND_PUNCHLOW_B64),
     FramerSheet: new ImageSource(Framer_SHEET_B64),
-    RinkSheet: new ImageSource(Rink_SHEET_B64)
+    RinkSheet: new ImageSource(Rink_SHEET_B64),
+    FightMusic: new Sound('./game/sfx/FightMusic.mp3')
 });
 
 // --- Config ---

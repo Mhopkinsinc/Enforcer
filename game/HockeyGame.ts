@@ -22,6 +22,7 @@ export interface GameResources {
     PunchLowSound: Sound;
     FramerSheet: ImageSource;
     RinkSheet: ImageSource;
+    FightMusic: Sound;
 }
 
 export class HockeyGame extends Engine {
@@ -101,7 +102,8 @@ export class HockeyGame extends Engine {
             this.resources.PunchHiSound,
             this.resources.PunchLowSound,
             this.resources.FramerSheet,
-            this.resources.RinkSheet
+            this.resources.RinkSheet,
+            this.resources.FightMusic
         ]);
         loader.suppressPlayButton = true;
         
@@ -230,6 +232,12 @@ export class HockeyGame extends Engine {
         ((this as any).currentScene as any).clear();
         this.timescale = 1.0;
 
+        // Play Music
+        if (!this.resources.FightMusic.isPlaying()) {
+            this.resources.FightMusic.loop = true;
+            this.resources.FightMusic.play(this.sfxVolume);
+        }
+
         // Add Rink background
         const rink = new Rink(0, 0);
         ((this as any).currentScene as any).add(rink);
@@ -319,9 +327,11 @@ export class HockeyGame extends Engine {
             if (this.player1.state === 'down' || this.player1.state === 'falling') {
                 this.isGameOver = true;
                 this.winner = 'PLAYER 2';
+                this.resources.FightMusic.stop(); // Stop music on KO
             } else if (this.player2.state === 'down' || this.player2.state === 'falling') {
                 this.isGameOver = true;
                 this.winner = 'PLAYER 1';
+                this.resources.FightMusic.stop(); // Stop music on KO
             }
         }
 
