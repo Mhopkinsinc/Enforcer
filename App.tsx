@@ -81,6 +81,14 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Effect to stop music when game ends or someone wins
+  useEffect(() => {
+    if ((gameState.gameOver || gameState.opponentDisconnected) && musicRef.current) {
+      musicRef.current.pause();
+      musicRef.current.currentTime = 0;
+    }
+  }, [gameState.gameOver, gameState.opponentDisconnected]);
+
   const startLocalGame = () => {
       setMenuState('game');
       if (gameRef.current) gameRef.current.restartGame();
