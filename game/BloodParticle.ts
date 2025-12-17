@@ -82,9 +82,9 @@ export class BloodParticle extends Actor {
             // SCREEN HIT LOGIC
             
             // Perspective Scaling (Growing larger as it gets closer/more negative)
-            // Map 0 to targetZ -> Scale 1.0 to 1.5 (Very slight growth, keeping small size)
+            // Map 0 to targetZ -> Scale 0.5 to 1.0 (Reduced size for smaller particles)
             const progress = Math.min(Math.abs(this.currentZ) / Math.abs(this.targetZ), 1);
-            const scale = 1.0 + (progress * 0.5);
+            const scale = 0.5 + (progress * 0.5);
             (this as any).scale = vec(scale, scale);
 
             // Check collision with screen plane
@@ -130,9 +130,9 @@ export class BloodParticle extends Actor {
 
         if (this.toCamera) {
             (this as any).z = 9999; // Topmost UI layer
-            // Splash big on the lens
-            // Much smaller size: 1.0 to 2.0 scale (similar to fight particles)
-            const finalScale = 1.0 + Math.random();
+            // Splash on the lens
+            // Much smaller size: 0.5 to 1.2 scale
+            const finalScale = 0.5 + Math.random() * 0.7;
             (this as any).scale = vec(finalScale, finalScale);
         } else {
             (this as any).z = -1; // Move behind players for wall blood
