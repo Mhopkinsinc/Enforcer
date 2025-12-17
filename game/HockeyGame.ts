@@ -1,3 +1,4 @@
+
 import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite, Sound, SpriteFont, Text, ScreenElement } from "excalibur";
 import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE } from "../constants";
 import { Player } from "./Player";
@@ -10,6 +11,7 @@ import { CameraManager } from "./CameraManager";
 import { ReplayManager } from "./ReplayManager";
 import { Framer } from "./Framer";
 import { Rink } from "./Rink";
+import { HealthBar } from "./HealthBar";
 
 export interface GameResources {
     SpriteSheet: ImageSource;
@@ -315,6 +317,12 @@ export class HockeyGame extends Engine {
 
         scene.add(this.player1);
         scene.add(this.player2);
+
+        // Add Segmented Health Bars
+        const hb1 = new HealthBar(105, 365, this.player1);
+        scene.add(hb1);
+        const hb2 = new HealthBar(765, 365, this.player2);
+        scene.add(hb2);
 
         scene.off('glovesDropped', this.onGlovesDropped);
         scene.off('glovesLanded', this.onGlovesLanded);
