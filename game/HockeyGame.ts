@@ -266,7 +266,7 @@ export class HockeyGame extends Engine {
         this.p1StateDisplay = new Text({
             text: 'READY',
             font: smallSpriteFont
-        });
+        });        
 
         const p1FontActor = new ScreenElement({
             pos: vec(70, 340), // Symmetrical offset relative to P1 Hud (130 + 60)
@@ -280,14 +280,15 @@ export class HockeyGame extends Engine {
         this.p2StateDisplay = new Text({
             text: 'READY',
             font: smallSpriteFont
-        });
+        });        
 
         // Use ScreenElement to make the text static and independent of camera zoom/pan
         const p2FontActor = new ScreenElement({
             pos: vec(730, 340), // Center of Player 2 HUD Framer (790 - 60)
             anchor: vec(0.5, 0.5),
             z: 100
-        });
+        });                
+        
         p2FontActor.graphics.use(this.p2StateDisplay);
         scene.add(p2FontActor);
         // ----------------------------------------
