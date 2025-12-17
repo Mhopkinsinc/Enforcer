@@ -126,10 +126,6 @@ const App: React.FC = () => {
       }
   };
 
-  const getHealthPercent = (current: number, max: number = 5) => {
-    return Math.max(0, (current / max) * 100);
-  };
-
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (gameRef.current) {
           gameRef.current.seekTo(parseFloat(e.target.value));
@@ -400,46 +396,18 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex justify-between w-[800px] mt-8">
-        {/* Player 1 HUD */}
-        <div className="bg-[#16213e] p-4 rounded-lg min-w-[200px] border-l-4 border-[#4ecdc4] shadow-lg">
-          <div className="text-lg font-bold mb-2 text-[#4ecdc4]">PLAYER 1</div>
-          <div className="w-full h-5 bg-[#0f0f23] rounded-full overflow-hidden mb-2 shadow-inner">
-            <div
-              className="h-full transition-all duration-200 bg-gradient-to-r from-[#4ecdc4] to-[#44a08d]"
-              style={{ width: `${getHealthPercent(gameState.p1Health)}%` }}
-            />
-          </div>
-          <div className="text-xs text-gray-400 uppercase tracking-wider">
-            {gameState.p1State}
-          </div>
-        </div>
-
-        {/* Controls Hint */}
+      <div className="flex justify-center w-[800px] mt-8">
+        {/* Controls Hint - Centered */}
         {gameState.isMultiplayer ? (
-            <div className="text-center text-sm text-gray-400 mt-2">
+            <div className="text-center text-sm text-gray-400">
                  <span className="block font-bold text-[#e94560]">YOU ARE {gameState.isHost ? "PLAYER 1" : "PLAYER 2"}</span>
                  <span>WASD / ARROWS to Move • J / 1 High • K / 2 Low • L / 3 Grab</span>
             </div>
         ) : (
-            <div className="text-center text-sm text-gray-400 mt-2">
+            <div className="text-center text-sm text-gray-400">
                  P1: WASD+J/K/L &nbsp;|&nbsp; P2: ARROWS+1/2/3
             </div>
         )}
-
-        {/* Player 2 HUD */}
-        <div className="bg-[#16213e] p-4 rounded-lg min-w-[200px] border-r-4 border-[#ff6b6b] text-right shadow-lg">
-          <div className="text-lg font-bold mb-2 text-[#ff6b6b]">PLAYER 2</div>
-          <div className="w-full h-5 bg-[#0f0f23] rounded-full overflow-hidden mb-2 shadow-inner">
-             <div
-              className="h-full transition-all duration-200 bg-gradient-to-l from-[#ff6b6b] to-[#ee5a5a] float-right"
-              style={{ width: `${getHealthPercent(gameState.p2Health)}%` }}
-            />
-          </div>
-          <div className="text-xs text-gray-400 uppercase tracking-wider">
-            {gameState.p2State}
-          </div>
-        </div>
       </div>
     </div>
   );

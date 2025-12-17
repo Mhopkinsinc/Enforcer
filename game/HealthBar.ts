@@ -54,8 +54,8 @@ export class HealthBar extends ScreenElement {
     }
 
     private updateSegments() {
-        const activeColor = Color.fromHex('#009200');
-        const inactiveColor = Color.fromHex('#920000');
+        const activeColor = Color.fromHex('#22c55e');
+        const inactiveColor = Color.fromHex('#ef4444');
 
         this.segments.forEach((rect, i) => {
             if (i < this.player.health) {
