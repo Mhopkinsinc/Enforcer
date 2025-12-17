@@ -32,6 +32,10 @@ export interface GameState {
     opponentDisconnected: boolean;
     // Audio
     sfxVolume: number;
+    // Visual Settings
+    crtScanlines?: boolean;
+    crtFlicker?: boolean;
+    crtVignette?: boolean;
 }
 
 export interface PlayerSnapshot {

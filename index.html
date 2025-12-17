@@ -17,6 +17,165 @@
 }
 </script>
     <script type="module" src="./index.tsx"></script>
+    <style>
+      /* Retro CRT Styles */
+      body {
+        background-color: #121212;
+        background-image: radial-gradient(circle at center, #1e1e2f 0%, #000 100%);
+      }
+
+      .tv-case {
+        background-color: #222;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 
+          inset 0 2px 4px rgba(255,255,255,0.1),
+          inset 0 -4px 6px rgba(0,0,0,0.6),
+          0 20px 50px rgba(0,0,0,0.8);
+        border: 1px solid #333;
+        position: relative;
+        display: inline-block;
+        /* Subtle texture for plastic */
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+      }
+
+      .tv-screen-bezel {
+        background-color: #000;
+        padding: 15px;
+        border-radius: 4px; /* Flatter screen typical of 2000s */
+        box-shadow: inset 0 0 10px rgba(0,0,0,1);
+        border-top: 2px solid #333;
+        border-bottom: 2px solid #111;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .tv-glass-container {
+        position: relative;
+        border-radius: 60px / 20px; /* Slight curve */
+        overflow: hidden;
+        background: #000;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+      }
+
+      /* CRT Scanline and Effects Overlay */
+      .crt-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        z-index: 100;
+      }
+      
+      .crt-scanlines {
+        background: 
+          /* Scanlines */
+          linear-gradient(
+            rgba(18, 16, 16, 0) 50%, 
+            rgba(0, 0, 0, 0.15) 50%
+          ),
+          /* RGB subpixel hint */
+          linear-gradient(
+            90deg, 
+            rgba(255, 0, 0, 0.03), 
+            rgba(0, 255, 0, 0.01), 
+            rgba(0, 0, 255, 0.03)
+          );
+        background-size: 100% 3px, 4px 100%;
+      }
+
+      .crt-vignette {
+        box-shadow: inset 0 0 40px rgba(0,0,0,0.7);
+      }
+
+      .crt-flicker {
+        animation: flicker 0.15s infinite;
+      }
+      
+      .screen-reflection {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 20%);
+        pointer-events: none;
+        z-index: 101;
+        border-radius: 60px / 20px;
+      }
+
+      @keyframes flicker {
+        0% { opacity: 0.98; }
+        50% { opacity: 1; }
+        100% { opacity: 0.99; }
+      }
+
+      /* Control Panel */
+      .tv-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 15px;
+        padding: 0 10px;
+        font-family: sans-serif;
+      }
+
+      .tv-brand {
+        color: #888;
+        font-weight: bold;
+        font-style: italic;
+        font-size: 1.2rem;
+        text-shadow: 0 1px 1px rgba(0,0,0,0.8);
+        letter-spacing: 2px;
+      }
+
+      .tv-buttons {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+      }
+
+      .power-led {
+        width: 8px;
+        height: 8px;
+        background-color: #2ecc71;
+        border-radius: 50%;
+        box-shadow: 0 0 5px #2ecc71;
+      }
+      
+      .power-btn {
+        width: 30px;
+        height: 30px;
+        background: linear-gradient(145deg, #1a1a1a, #2a2a2a);
+        border-radius: 50%;
+        border: 1px solid #000;
+        box-shadow: 0 2px 2px rgba(0,0,0,0.5);
+      }
+
+      .speaker-grill {
+        background-image: radial-gradient(#000 20%, transparent 20%);
+        background-color: #222;
+        background-position: 0 0;
+        background-size: 4px 4px;
+        width: 120px;
+        height: 12px;
+        border-radius: 6px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+
+      /* Adjust Canvas to fit */
+      canvas#gameCanvas {
+        display: block;
+        width: 100%;
+        border-radius: 60px / 20px; /* Match container curve */
+      }
+      
+      .image-pixelated {
+        image-rendering: pixelated;
+      }
+    </style>
 </head>
   <body class="bg-[#1a1a2e] text-white overflow-hidden">
     <div id="root"></div>

@@ -24,7 +24,10 @@ const App: React.FC = () => {
     isMultiplayer: false,
     connectionStatus: 'disconnected',
     opponentDisconnected: false,
-    sfxVolume: 0.15
+    sfxVolume: 0.15,
+    crtScanlines: true,
+    crtFlicker: true,
+    crtVignette: true
   });
 
   const [menuState, setMenuState] = useState<'main' | 'host' | 'join' | 'game' | 'settings'>('main');
@@ -49,7 +52,8 @@ const App: React.FC = () => {
     game.start().then(() => {
         // Initial setup for background/menu visuals
         game.setupGame((state) => {
-            setGameState({ ...state });
+            // Merge with previous state to preserve local settings like crtScanlines
+            setGameState(prev => ({ ...prev, ...state }));
         });
         
         // Enable debug mode to see hitboxes
@@ -155,188 +159,252 @@ const App: React.FC = () => {
       }
   };
 
+  const toggleSetting = (setting: 'crtScanlines' | 'crtFlicker' | 'crtVignette') => {
+      setGameState(prev => ({ ...prev, [setting]: !prev[setting] }));
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen font-sans">
-      <h1 className="text-4xl mb-4 text-[#e94560] drop-shadow-md font-bold">
+      <h1 className="text-4xl mb-8 text-[#e94560] drop-shadow-md font-bold" style={{textShadow: "0 0 10px rgba(233,69,96,0.5)"}}>
         🏒 HOCKEY FIGHT 🥊
       </h1>
 
-      <div className="relative">
-        <canvas
-            ref={canvasRef}
-            id="gameCanvas"
-            className="border-4 border-[#e94560] rounded-lg shadow-[0_0_30px_rgba(233,69,96,0.3)] image-pixelated"
-            onContextMenu={(e) => e.preventDefault()}
-        />
+      {/* TV CASE */}
+      <div className="tv-case">
+        
+        {/* BEZEL */}
+        <div className="tv-screen-bezel">
+            
+            {/* GLASS CONTAINER */}
+            <div className="tv-glass-container relative" style={{width: '800px', height: '400px'}}>
+                <canvas
+                    ref={canvasRef}
+                    id="gameCanvas"
+                    className="image-pixelated"
+                    onContextMenu={(e) => e.preventDefault()}
+                />
 
-        {/* MENU OVERLAY */}
-        {menuState !== 'game' && (
-            <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-center z-20">
-                {menuState === 'main' && (
-                    <div className="flex flex-col gap-4 items-center">
-                        <button onClick={startLocalGame} className="bg-[#4ecdc4] text-[#1a1a2e] px-8 py-3 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition">
-                            LOCAL 2 PLAYER
-                        </button>
-                        <div className="flex gap-4">
-                            <button onClick={handleHost} className="bg-[#e94560] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#d13650]">
-                                HOST ONLINE
-                            </button>
-                            <button onClick={() => setMenuState('join')} className="bg-[#16213e] border-2 border-[#e94560] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#1f2b4d]">
-                                JOIN ONLINE
-                            </button>
-                        </div>
-                        <button onClick={() => setMenuState('settings')} className="text-gray-400 hover:text-white mt-4 font-bold tracking-widest text-sm border-b border-transparent hover:border-white transition-all">
-                             ⚙️ SETTINGS
-                        </button>
+                {/* MENU OVERLAY */}
+                {menuState !== 'game' && (
+                    <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-center z-20">
+                        {menuState === 'main' && (
+                            <div className="flex flex-col gap-4 items-center">
+                                <button onClick={startLocalGame} className="bg-[#4ecdc4] text-[#1a1a2e] px-8 py-3 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition shadow-[0_0_15px_rgba(78,205,196,0.4)]">
+                                    LOCAL 2 PLAYER
+                                </button>
+                                <div className="flex gap-4">
+                                    <button onClick={handleHost} className="bg-[#e94560] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#d13650] shadow-[0_0_15px_rgba(233,69,96,0.4)]">
+                                        HOST ONLINE
+                                    </button>
+                                    <button onClick={() => setMenuState('join')} className="bg-[#16213e] border-2 border-[#e94560] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#1f2b4d]">
+                                        JOIN ONLINE
+                                    </button>
+                                </div>
+                                <button onClick={() => setMenuState('settings')} className="text-gray-400 hover:text-white mt-4 font-bold tracking-widest text-sm border-b border-transparent hover:border-white transition-all">
+                                    ⚙️ SETTINGS
+                                </button>
+                            </div>
+                        )}
+
+                        {menuState === 'host' && (
+                            <div className="flex flex-col items-center gap-4 text-center p-6">
+                                <h2 className="text-2xl text-[#4ecdc4] font-bold">WAITING FOR PLAYER...</h2>
+                                <div className="bg-[#16213e] p-4 rounded border border-gray-600">
+                                    <p className="text-gray-400 text-sm mb-1">SHARE THIS ROOM ID:</p>
+                                    <p className="text-2xl font-mono text-white tracking-widest select-all">{roomId}</p>
+                                </div>
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mt-4"></div>
+                                <button onClick={() => setMenuState('main')} className="text-gray-400 hover:text-white mt-4 underline">Cancel</button>
+                            </div>
+                        )}
+
+                        {menuState === 'join' && (
+                            <div className="flex flex-col items-center gap-4">
+                                <h2 className="text-2xl text-[#e94560] font-bold">JOIN GAME</h2>
+                                <input 
+                                    type="text" 
+                                    placeholder="ENTER ROOM ID"
+                                    className="bg-[#16213e] border border-gray-600 p-3 rounded text-white text-center font-mono uppercase focus:border-[#4ecdc4] outline-none"
+                                    value={joinId}
+                                    onChange={(e) => setJoinId(e.target.value)}
+                                />
+                                <div className="flex gap-4">
+                                    <button onClick={() => setMenuState('main')} className="text-gray-400 hover:text-white">Back</button>
+                                    <button onClick={handleJoin} className="bg-[#4ecdc4] text-[#1a1a2e] px-6 py-2 rounded font-bold hover:bg-[#3dbdb4]">
+                                        CONNECT
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {menuState === 'settings' && (
+                            <div className="flex flex-col items-center gap-6 p-8 bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px]">
+                                <h2 className="text-3xl text-[#e94560] font-bold tracking-wider">SETTINGS</h2>
+                                
+                                <div className="w-full">
+                                    <label className="flex justify-between text-[#4ecdc4] mb-3 font-bold text-lg">
+                                        <span>SFX VOLUME</span>
+                                        <span>{Math.round(gameState.sfxVolume * 100)}%</span>
+                                    </label>
+                                    <input 
+                                        type="range" 
+                                        min="0" 
+                                        max="1" 
+                                        step="0.05"
+                                        value={gameState.sfxVolume}
+                                        onChange={handleVolumeChange}
+                                        className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560] hover:accent-[#ff6b81]"
+                                    />
+                                </div>
+
+                                <div className="w-full flex flex-col gap-3">
+                                    <div className="text-[#4ecdc4] font-bold text-lg mb-1">VISUALS</div>
+                                    <label className="flex items-center justify-between cursor-pointer group">
+                                        <span className="text-gray-300 group-hover:text-white transition-colors">Scanlines</span>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={gameState.crtScanlines} 
+                                            onChange={() => toggleSetting('crtScanlines')}
+                                            className="w-5 h-5 accent-[#e94560]"
+                                        />
+                                    </label>
+                                    <label className="flex items-center justify-between cursor-pointer group">
+                                        <span className="text-gray-300 group-hover:text-white transition-colors">Vignette</span>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={gameState.crtVignette} 
+                                            onChange={() => toggleSetting('crtVignette')}
+                                            className="w-5 h-5 accent-[#e94560]"
+                                        />
+                                    </label>
+                                    <label className="flex items-center justify-between cursor-pointer group">
+                                        <span className="text-gray-300 group-hover:text-white transition-colors">Flicker</span>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={gameState.crtFlicker} 
+                                            onChange={() => toggleSetting('crtFlicker')}
+                                            className="w-5 h-5 accent-[#e94560]"
+                                        />
+                                    </label>
+                                </div>
+
+                                <div className="flex gap-4 w-full mt-2">
+                                    <button 
+                                        onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} 
+                                        className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold transition-colors"
+                                    >
+                                        🔊 TEST
+                                    </button>
+                                    <button 
+                                        onClick={() => setMenuState('main')} 
+                                        className="flex-1 bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-2 rounded font-bold transition-colors"
+                                    >
+                                        DONE
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
-
-                {menuState === 'host' && (
-                    <div className="flex flex-col items-center gap-4 text-center p-6">
-                        <h2 className="text-2xl text-[#4ecdc4] font-bold">WAITING FOR PLAYER...</h2>
-                        <div className="bg-[#16213e] p-4 rounded border border-gray-600">
-                            <p className="text-gray-400 text-sm mb-1">SHARE THIS ROOM ID:</p>
-                            <p className="text-2xl font-mono text-white tracking-widest select-all">{roomId}</p>
-                        </div>
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mt-4"></div>
-                        <button onClick={() => setMenuState('main')} className="text-gray-400 hover:text-white mt-4 underline">Cancel</button>
-                    </div>
-                )}
-
-                {menuState === 'join' && (
-                    <div className="flex flex-col items-center gap-4">
-                        <h2 className="text-2xl text-[#e94560] font-bold">JOIN GAME</h2>
-                        <input 
-                            type="text" 
-                            placeholder="ENTER ROOM ID"
-                            className="bg-[#16213e] border border-gray-600 p-3 rounded text-white text-center font-mono uppercase"
-                            value={joinId}
-                            onChange={(e) => setJoinId(e.target.value)}
-                        />
-                        <div className="flex gap-4">
-                             <button onClick={() => setMenuState('main')} className="text-gray-400 hover:text-white">Back</button>
-                             <button onClick={handleJoin} className="bg-[#4ecdc4] text-[#1a1a2e] px-6 py-2 rounded font-bold hover:bg-[#3dbdb4]">
-                                CONNECT
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {menuState === 'settings' && (
-                    <div className="flex flex-col items-center gap-6 p-8 bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px]">
-                        <h2 className="text-3xl text-[#e94560] font-bold tracking-wider">SETTINGS</h2>
-                        
-                        <div className="w-full">
-                            <label className="flex justify-between text-[#4ecdc4] mb-3 font-bold text-lg">
-                                <span>SFX VOLUME</span>
-                                <span>{Math.round(gameState.sfxVolume * 100)}%</span>
-                            </label>
+                
+                {/* Replay Overlay Controls */}
+                {gameState.isReplaying && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/80 p-4 border-t-2 border-[#e94560] z-30">
+                        <div className="flex flex-col gap-2">
                             <input 
                                 type="range" 
                                 min="0" 
                                 max="1" 
-                                step="0.05"
-                                value={gameState.sfxVolume}
-                                onChange={handleVolumeChange}
-                                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560] hover:accent-[#ff6b81]"
+                                step="0.001"
+                                value={gameState.replayProgress}
+                                onChange={handleSeek}
+                                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560]"
                             />
+                            <div className="flex justify-center items-center gap-4 mt-2">
+                                <button onClick={() => handleSpeed(-2)} className={`px-3 py-1 rounded ${gameState.replaySpeed === -2 ? 'bg-[#e94560]' : 'bg-gray-700'}`}>⏪</button>
+                                <button onClick={() => handleSpeed(0)} className={`px-3 py-1 rounded ${gameState.replaySpeed === 0 ? 'bg-[#e94560]' : 'bg-gray-700'}`}>⏸</button>
+                                <button onClick={() => handleSpeed(1)} className={`px-3 py-1 rounded ${gameState.replaySpeed === 1 ? 'bg-[#e94560]' : 'bg-gray-700'}`}>▶</button>
+                                <button onClick={() => handleSpeed(2)} className={`px-3 py-1 rounded ${gameState.replaySpeed === 2 ? 'bg-[#e94560]' : 'bg-gray-700'}`}>⏩</button>
+                                <button onClick={toggleReplay} className="px-3 py-1 rounded bg-red-600 text-white font-bold ml-4 hover:bg-red-500">EXIT REPLAY</button>
+                            </div>
                         </div>
+                    </div>
+                )}
 
-                        <div className="flex gap-4 w-full">
+                {/* Game Over Overlay */}
+                {gameState.showGameOver && !gameState.isReplaying && !gameState.opponentDisconnected && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10">
+                        <div className="text-4xl text-[#feca57] drop-shadow-md font-bold mb-4 animate-bounce">
+                            🏆 {gameState.winner} WINS! 🏆
+                        </div>
+                        <div className="flex flex-col gap-3 items-center">
+                            <div className="text-white text-lg">
+                                {gameState.isMultiplayer 
+                                    ? (gameState.isHost ? "Press SPACE to rematch" : "Waiting for Host to rematch...") 
+                                    : "Press SPACE to fight again"
+                                }
+                            </div>
                             <button 
-                                onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} 
-                                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold transition-colors"
+                                onClick={toggleReplay}
+                                className="mt-2 bg-[#e94560] text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-[#d43750] transition-transform hover:scale-105"
                             >
-                                🔊 TEST
+                                🎥 WATCH REPLAY
                             </button>
-                            <button 
-                                onClick={() => setMenuState('main')} 
-                                className="flex-1 bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-2 rounded font-bold transition-colors"
-                            >
-                                DONE
+                            {gameState.isMultiplayer && (
+                                <button onClick={() => window.location.reload()} className="text-sm text-gray-400 hover:text-white mt-4 underline">
+                                    DISCONNECT
+                                </button>
+                            )}
+                            <button onClick={() => setMenuState('main')} className="text-sm text-gray-400 hover:text-white mt-2 underline">
+                                MAIN MENU
                             </button>
                         </div>
                     </div>
                 )}
-            </div>
-        )}
-        
-        {/* Replay Overlay Controls */}
-        {gameState.isReplaying && (
-            <div className="absolute bottom-0 left-0 right-0 bg-black/80 p-4 border-t-2 border-[#e94560] z-30">
-                <div className="flex flex-col gap-2">
-                    <input 
-                        type="range" 
-                        min="0" 
-                        max="1" 
-                        step="0.001"
-                        value={gameState.replayProgress}
-                        onChange={handleSeek}
-                        className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560]"
-                    />
-                    <div className="flex justify-center items-center gap-4 mt-2">
-                        <button onClick={() => handleSpeed(-2)} className={`px-3 py-1 rounded ${gameState.replaySpeed === -2 ? 'bg-[#e94560]' : 'bg-gray-700'}`}>⏪</button>
-                        <button onClick={() => handleSpeed(0)} className={`px-3 py-1 rounded ${gameState.replaySpeed === 0 ? 'bg-[#e94560]' : 'bg-gray-700'}`}>⏸</button>
-                        <button onClick={() => handleSpeed(1)} className={`px-3 py-1 rounded ${gameState.replaySpeed === 1 ? 'bg-[#e94560]' : 'bg-gray-700'}`}>▶</button>
-                        <button onClick={() => handleSpeed(2)} className={`px-3 py-1 rounded ${gameState.replaySpeed === 2 ? 'bg-[#e94560]' : 'bg-gray-700'}`}>⏩</button>
-                        <button onClick={toggleReplay} className="px-3 py-1 rounded bg-red-600 text-white font-bold ml-4 hover:bg-red-500">EXIT REPLAY</button>
-                    </div>
-                </div>
-            </div>
-        )}
 
-        {/* Game Over Overlay */}
-        {gameState.showGameOver && !gameState.isReplaying && !gameState.opponentDisconnected && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10">
-                 <div className="text-4xl text-[#feca57] drop-shadow-md font-bold mb-4 animate-bounce">
-                    🏆 {gameState.winner} WINS! 🏆
-                 </div>
-                 <div className="flex flex-col gap-3 items-center">
-                    <div className="text-white text-lg">
-                        {gameState.isMultiplayer 
-                            ? (gameState.isHost ? "Press SPACE to rematch" : "Waiting for Host to rematch...") 
-                            : "Press SPACE to fight again"
-                        }
-                    </div>
-                    <button 
-                        onClick={toggleReplay}
-                        className="mt-2 bg-[#e94560] text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-[#d43750] transition-transform hover:scale-105"
-                    >
-                        🎥 WATCH REPLAY
-                    </button>
-                    {gameState.isMultiplayer && (
-                        <button onClick={() => window.location.reload()} className="text-sm text-gray-400 hover:text-white mt-4 underline">
-                            DISCONNECT
+                {/* Disconnected Overlay */}
+                {gameState.opponentDisconnected && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 z-50">
+                        <div className="text-4xl text-[#e94560] drop-shadow-md font-bold mb-6">
+                            ⚠️ OPPONENT DISCONNECTED
+                        </div>
+                        <button 
+                            onClick={() => window.location.reload()}
+                            className="bg-[#4ecdc4] text-[#1a1a2e] px-8 py-3 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition hover:scale-105"
+                        >
+                            RETURN TO MENU
                         </button>
-                    )}
-                    <button onClick={() => setMenuState('main')} className="text-sm text-gray-400 hover:text-white mt-2 underline">
-                        MAIN MENU
-                    </button>
+                    </div>
+                )}
+
+                {/* SCANLINES OVERLAY (Inside the glass) */}
+                <div className={`crt-overlay ${gameState.crtScanlines ? 'crt-scanlines' : ''} ${gameState.crtVignette ? 'crt-vignette' : ''} ${gameState.crtFlicker ? 'crt-flicker' : ''}`}></div>
+                <div className="screen-reflection"></div>
+            </div>
+        </div>
+
+        {/* TV CONTROLS */}
+        <div className="tv-controls">
+            <div className="speaker-grill"></div>
+            <div className="flex flex-col items-center">
+                 <div className="tv-brand">POLYTRON</div>
+                 <div className="flex gap-2 mt-1">
+                    <div className="w-8 h-2 bg-gray-800 rounded"></div>
+                    <div className="w-8 h-2 bg-gray-800 rounded"></div>
                  </div>
             </div>
-        )}
-
-        {/* Disconnected Overlay */}
-        {gameState.opponentDisconnected && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 z-50">
-                <div className="text-4xl text-[#e94560] drop-shadow-md font-bold mb-6">
-                    ⚠️ OPPONENT DISCONNECTED
-                </div>
-                <button 
-                    onClick={() => window.location.reload()}
-                    className="bg-[#4ecdc4] text-[#1a1a2e] px-8 py-3 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition hover:scale-105"
-                >
-                    RETURN TO MENU
-                </button>
+            <div className="tv-buttons">
+                <div className="power-led"></div>
+                <div className="power-btn"></div>
             </div>
-        )}
+        </div>
       </div>
 
-      <div className="flex justify-between w-[800px] mt-4">
+      <div className="flex justify-between w-[800px] mt-8">
         {/* Player 1 HUD */}
-        <div className="bg-[#16213e] p-4 rounded-lg min-w-[200px] border-l-4 border-[#4ecdc4]">
+        <div className="bg-[#16213e] p-4 rounded-lg min-w-[200px] border-l-4 border-[#4ecdc4] shadow-lg">
           <div className="text-lg font-bold mb-2 text-[#4ecdc4]">PLAYER 1</div>
-          <div className="w-full h-5 bg-[#0f0f23] rounded-full overflow-hidden mb-2">
+          <div className="w-full h-5 bg-[#0f0f23] rounded-full overflow-hidden mb-2 shadow-inner">
             <div
               className="h-full transition-all duration-200 bg-gradient-to-r from-[#4ecdc4] to-[#44a08d]"
               style={{ width: `${getHealthPercent(gameState.p1Health)}%` }}
@@ -360,9 +428,9 @@ const App: React.FC = () => {
         )}
 
         {/* Player 2 HUD */}
-        <div className="bg-[#16213e] p-4 rounded-lg min-w-[200px] border-r-4 border-[#ff6b6b] text-right">
+        <div className="bg-[#16213e] p-4 rounded-lg min-w-[200px] border-r-4 border-[#ff6b6b] text-right shadow-lg">
           <div className="text-lg font-bold mb-2 text-[#ff6b6b]">PLAYER 2</div>
-          <div className="w-full h-5 bg-[#0f0f23] rounded-full overflow-hidden mb-2">
+          <div className="w-full h-5 bg-[#0f0f23] rounded-full overflow-hidden mb-2 shadow-inner">
              <div
               className="h-full transition-all duration-200 bg-gradient-to-l from-[#ff6b6b] to-[#ee5a5a] float-right"
               style={{ width: `${getHealthPercent(gameState.p2Health)}%` }}
