@@ -196,7 +196,7 @@ const App: React.FC = () => {
 
   return (
     <div 
-      className="flex flex-col items-center justify-center min-h-screen font-sans"
+      className="flex flex-col items-center justify-center min-h-screen font-sans relative overflow-hidden"
       style={{
         backgroundImage: `url(${FULLRINK_SHEET_B64})`,
         backgroundSize: 'cover',
@@ -205,6 +205,11 @@ const App: React.FC = () => {
         imageRendering: 'pixelated'
       }}
     >
+      {/* ARENA FROSTED GLASS OVERLAY */}
+      <div className="arena-frosted-glass">
+          <div className="arena-glass-glare"></div>
+      </div>
+
       {/* TV CASE */}
       <div className="tv-case">
         
@@ -446,7 +451,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex justify-center w-[800px] mt-8">
+      <div className="flex justify-center w-[800px] mt-8 relative z-20">
         {/* Controls Hint - Centered */}
         {gameState.isMultiplayer ? (
             <div className="text-center text-sm text-gray-400">
