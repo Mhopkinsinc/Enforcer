@@ -411,8 +411,17 @@ const App: React.FC = () => {
                 {/* Game Over Overlay */}
                 {gameState.showGameOver && !gameState.isReplaying && !gameState.opponentDisconnected && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10">
-                        <div className="text-4xl text-[#feca57] drop-shadow-md font-bold mb-4 animate-bounce">
-                            🏆 {gameState.winner} WINS! 🏆
+                        <div className={`text-4xl drop-shadow-md font-bold mb-4 animate-bounce ${
+                            gameState.isMultiplayer && !((gameState.isHost && gameState.winner === 'PLAYER 1') || (!gameState.isHost && gameState.winner === 'PLAYER 2'))
+                            ? 'text-red-500'
+                            : 'text-[#feca57]'
+                        }`}>
+                            {!gameState.isMultiplayer 
+                                ? `🏆 ${gameState.winner} WINS! 🏆` 
+                                : (gameState.isHost && gameState.winner === 'PLAYER 1') || (!gameState.isHost && gameState.winner === 'PLAYER 2')
+                                    ? "🏆 YOU WIN! 🏆"
+                                    : "🏳️ YOU LOSE! 🏳️"
+                            }
                         </div>
                         <div className="flex flex-col gap-3 items-center">
                             <div className="text-white text-lg">
