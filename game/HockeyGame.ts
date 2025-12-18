@@ -43,6 +43,9 @@ export class HockeyGame extends Engine {
     public glovesLanded: boolean = false;
     private winTriggered: boolean = false;
 
+    // Mode
+    public isCPUGame: boolean = false;
+
     // Multiplayer
     public networkManager: NetworkManager | null = null;
     private isHost: boolean = false;
@@ -59,19 +62,16 @@ export class HockeyGame extends Engine {
         if (this.replayManager.isReplaying) {
             this.replayManager.update();
         } else {
-            // Only update game logic if players are initialized
             if (this.player1 && this.player2) {
                 this.replayManager.recordFrame();
                 this.checkGameOver();
                 
-                // Only increment KO timer if the loser has landed (slow motion is done)
                 if (this.isGameOver && this.winner && this.timescale >= 1.0) {
                     this.koTimer += evt.elapsed;
                 }
 
                 this.cameraManager.update(evt.elapsed);
                 
-                // Multiplayer Sync
                 if (this.networkManager) {
                     this.broadcastState();
                 }
@@ -82,7 +82,7 @@ export class HockeyGame extends Engine {
 
     private onGlovesDropped = (evt: any) => {
         const gloves = new Gloves(evt.x, evt.y, evt.isPlayer1);
-        ((this as any).currentScene as any).add(gloves);
+        (this.currentScene as any).add(gloves);
     };
 
     private onGlovesLanded = () => {
@@ -142,13 +142,11 @@ export class HockeyGame extends Engine {
     public setupNetwork(manager: NetworkManager, isHost: boolean) {
         this.networkManager = manager;
         this.isHost = isHost;
+        this.isCPUGame = false;
         this.opponentDisconnected = false;
 
         this.networkManager.onMessage = (msg) => {
             if (!this.player1 || !this.player2) return;
-
-            // If we are currently replaying, ignore SYNC and HIT packets.
-            // These would move the actors and fight with the replay manager.
             if (this.isReplaying && (msg.type === 'SYNC' || msg.type === 'HIT')) {
                 return;
             }
@@ -159,15 +157,13 @@ export class HockeyGame extends Engine {
             } else if (msg.type === 'HIT') {
                 const targetP1 = msg.payload.targetP1;
                 const damageType = msg.payload.damageType;
-                
                 const victim = targetP1 ? this.player1 : this.player2;
                 const attacker = targetP1 ? this.player2 : this.player1;
-
                 if (!victim || !attacker) return;
 
                 const isFinisher = victim.health - 1 <= 0;
                 victim.takeDamage(damageType);
-                const dir = (attacker as any).pos.x < (victim as any).pos.x ? 1 : -1;
+                const dir = attacker.pos.x < victim.pos.x ? 1 : -1;
                 const force = isFinisher ? FINISHER_KNOCKBACK_FORCE : KNOCKBACK_FORCE;
                 victim.vx += dir * force;
 
@@ -177,15 +173,14 @@ export class HockeyGame extends Engine {
                 if (damageType === 'high') {
                     const amount = 6 + Math.floor(Math.random() * 4); 
                     for (let i = 0; i < amount; i++) {
-                        const spawnX = (victim as any).pos.x;
-                        const spawnY = (victim as any).pos.y - 70 + (Math.random() * 20 - 10);
+                        const spawnX = victim.pos.x;
+                        const spawnY = victim.pos.y - 70 + (Math.random() * 20 - 10);
                         const blood = new BloodParticle(spawnX, spawnY, dir);
-                        (this as any).currentScene.add(blood);
+                        this.currentScene.add(blood);
                     }
                 }
             } else if (msg.type === 'RESTART') {
-                // Restarting is always allowed as it resets the state for both players
-                this.reset();
+                this.reset(false);
             }
         };
 
@@ -195,7 +190,7 @@ export class HockeyGame extends Engine {
             this.updateUI();
         };
 
-        this.reset();
+        this.reset(false);
     }
 
     public sendHit(type: 'high' | 'low', targetP1: boolean) {
@@ -216,8 +211,8 @@ export class HockeyGame extends Engine {
         });
     }
 
-    restartGame() {
-        this.reset();
+    restartGame(cpuMode: boolean = false) {
+        this.reset(cpuMode);
         if (this.networkManager) {
             this.networkManager.send({ type: 'RESTART', payload: {} });
         }
@@ -227,10 +222,11 @@ export class HockeyGame extends Engine {
         this.cameraManager.shake(duration, strength);
     }
 
-    private reset() {
+    public reset(cpuMode: boolean) {
         const scene = this.currentScene as Scene;
         scene.clear();
         this.timescale = 1.0;
+        this.isCPUGame = cpuMode;
 
         const rink = new Rink(0, 0);
         scene.add(rink);
@@ -241,18 +237,10 @@ export class HockeyGame extends Engine {
         const p2Hud = new Framer(790, 390, 5, 3);
         scene.add(p2Hud);
 
-        // --- Custom SpriteFont Implementation ---
         const fontSheet = SpriteSheet.fromImageSource({
             image: this.resources.SmallFontSheet,
-            grid: {
-                rows: 3,
-                columns: 32,
-                spriteWidth: 8,
-                spriteHeight: 8
-            },
-            spacing: {
-                originOffset: { x: 0, y: 8 } // Skip row 1, start at row 2
-            }
+            grid: { rows: 3, columns: 32, spriteWidth: 8, spriteHeight: 8 },
+            spacing: { originOffset: { x: 0, y: 8 } }
         });
 
         const alphabet =
@@ -266,36 +254,15 @@ export class HockeyGame extends Engine {
             spriteSheet: fontSheet
         });
 
-        // Initialize state display text for Player 1
-        this.p1StateDisplay = new Text({
-            text: 'READY',
-            font: smallSpriteFont
-        });        
-
-        const p1FontActor = new ScreenElement({
-            pos: vec(70, 340), // Symmetrical offset relative to P1 Hud (130 + 60)
-            anchor: vec(0.5, 0.5),
-            z: 100
-        });
+        this.p1StateDisplay = new Text({ text: 'READY', font: smallSpriteFont });        
+        const p1FontActor = new ScreenElement({ pos: vec(70, 340), anchor: vec(0.5, 0.5), z: 100 });
         p1FontActor.graphics.use(this.p1StateDisplay);
         scene.add(p1FontActor);
 
-        // Initialize state display text for Player 2
-        this.p2StateDisplay = new Text({
-            text: 'READY',
-            font: smallSpriteFont
-        });        
-
-        // Use ScreenElement to make the text static and independent of camera zoom/pan
-        const p2FontActor = new ScreenElement({
-            pos: vec(730, 340), // Center of Player 2 HUD Framer (790 - 60)
-            anchor: vec(0.5, 0.5),
-            z: 100
-        });                
-        
+        this.p2StateDisplay = new Text({ text: 'READY', font: smallSpriteFont });        
+        const p2FontActor = new ScreenElement({ pos: vec(730, 340), anchor: vec(0.5, 0.5), z: 100 });                
         p2FontActor.graphics.use(this.p2StateDisplay);
         scene.add(p2FontActor);
-        // ----------------------------------------
 
         this.isGameOver = false;
         this.winner = null;
@@ -307,7 +274,6 @@ export class HockeyGame extends Engine {
         this.cameraManager.reset();
 
         const centerY = 400 / 2 + 50; 
-        
         this.player1 = new Player(250, centerY, true);
         this.player2 = new Player(550, centerY, false);
         
@@ -322,6 +288,9 @@ export class HockeyGame extends Engine {
         } else {
             this.player1.isLocal = true;
             this.player2.isLocal = true;
+            if (cpuMode) {
+                this.player2.isCPU = true;
+            }
         }
 
         this.player1.opponent = this.player2;
@@ -330,14 +299,10 @@ export class HockeyGame extends Engine {
         scene.add(this.player1);
         scene.add(this.player2);
 
-        // Add Segmented Health Bars
         const hb1 = new HealthBar(105, 365, this.player1);
         scene.add(hb1);
         const hb2 = new HealthBar(765, 365, this.player2);
         scene.add(hb2);
-
-        scene.off('glovesDropped', this.onGlovesDropped);
-        scene.off('glovesLanded', this.onGlovesLanded);
 
         scene.on('glovesDropped', this.onGlovesDropped);
         scene.on('glovesLanded', this.onGlovesLanded);
@@ -395,12 +360,9 @@ export class HockeyGame extends Engine {
     }
 
     private updateUI() {
-        // Update in-game Player 1 state text display
         if (this.p1StateDisplay && this.player1) {
             this.p1StateDisplay.text = this.player1.state.toUpperCase().replace('_', ' ');
         }
-        
-        // Update in-game Player 2 state text display
         if (this.p2StateDisplay && this.player2) {
             this.p2StateDisplay.text = this.player2.state.toUpperCase().replace('_', ' ');
         }
@@ -421,6 +383,7 @@ export class HockeyGame extends Engine {
                 replayProgress: progress,
                 replaySpeed: this.replayManager.playbackSpeed,
                 isMultiplayer: !!this.networkManager,
+                isCPUGame: this.isCPUGame,
                 connectionStatus: this.networkManager ? 'connected' : 'disconnected',
                 roomId: this.networkManager ? '...' : undefined,
                 isHost: this.isHost,

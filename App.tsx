@@ -28,6 +28,7 @@ const App: React.FC = () => {
     replayProgress: 0,
     replaySpeed: 1,
     isMultiplayer: false,
+    isCPUGame: false,
     connectionStatus: 'disconnected',
     opponentDisconnected: false,
     sfxVolume: 0.15,
@@ -56,9 +57,7 @@ const App: React.FC = () => {
     });
 
     game.start().then(() => {
-        // Initial setup for background/menu visuals
         game.setupGame((state) => {
-            // Merge with previous state to preserve local settings like crtScanlines
             setGameState(prev => ({ ...prev, ...state }));
         });
     });
@@ -66,11 +65,10 @@ const App: React.FC = () => {
     gameRef.current = game;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-        // Prevent restarting if opponent disconnected
         if (game.opponentDisconnected) return;
 
         if (!game.isReplaying && game.isGameOver && (e.key === ' ' || e.key === 'Enter')) {
-            game.restartGame();
+            game.restartGame(game.isCPUGame);
             playBase64Mp3();
         }
     };
@@ -94,6 +92,7 @@ const App: React.FC = () => {
           showProgress: true,
           steps: [            
             { element: '#tour-local-btn', popover: { title: 'Local Play', description: '2 Player Local Play, on the same computer', side: "bottom", align: 'start' }},
+            { element: '#tour-cpu-btn', popover: { title: 'VS CPU', description: 'Play against the computer AI', side: "bottom", align: 'start' }},
             { element: '#tour-online-section', popover: { title: 'Online Play', description: 'Host or Connect to a friends room', side: "bottom", align: 'start' }},
             { element: '#tour-settings-btn', popover: { title: 'Settings', description: 'Joystick, Volume, CRT Filters', side: "top", align: 'start' }},
             { element: '#tour-controls', popover: { title: 'Keyboard Controls', description: 'Default Keyboard Buttons', side: "top", align: 'start' }},
@@ -119,7 +118,13 @@ const App: React.FC = () => {
 
   const startLocalGame = () => {
       setMenuState('game');
-      if (gameRef.current) gameRef.current.restartGame();
+      if (gameRef.current) gameRef.current.restartGame(false);
+      playBase64Mp3();
+  };
+
+  const startCpuGame = () => {
+      setMenuState('game');
+      if (gameRef.current) gameRef.current.restartGame(true);
       playBase64Mp3();
   };
 
@@ -133,7 +138,7 @@ const App: React.FC = () => {
           net.onConnection = () => {
               setMenuState('game');
               if (gameRef.current) {
-                  gameRef.current.setupNetwork(net, true); // True = Host (P1)
+                  gameRef.current.setupNetwork(net, true); 
               }
               playBase64Mp3();
           };
@@ -146,20 +151,17 @@ const App: React.FC = () => {
 
   const handleJoin = async () => {
       if(!joinId) return;
-      
       const net = new NetworkManager();
       try {
-          await net.init(); // Init self to get ID
+          await net.init();
           net.connect(joinId);
-
           net.onConnection = () => {
               setMenuState('game');
               if (gameRef.current) {
-                  gameRef.current.setupNetwork(net, false); // False = Client (P2)
+                  gameRef.current.setupNetwork(net, false); 
               }
               playBase64Mp3();
           };
-
           networkRef.current = net;
       } catch(e) {
           alert("Connection failed");
@@ -187,24 +189,17 @@ const App: React.FC = () => {
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const vol = parseFloat(e.target.value);
-      // Update local state immediately for UI responsiveness
       setGameState(prev => ({ ...prev, sfxVolume: vol }));
-      // Update music ref volume
       if (musicRef.current) {
           musicRef.current.volume = vol;
       }
-      // Update game engine
       if (gameRef.current) {
           gameRef.current.setSFXVolume(vol);
       }
   };
 
   const playBase64Mp3 = () => {
-    if (!THEME_SONG_B64) {
-      console.warn("Theme song base64 data is empty.");
-      return;
-    }
-    // Stop existing music
+    if (!THEME_SONG_B64) return;
     if (musicRef.current) {
         musicRef.current.pause();
         musicRef.current.currentTime = 0;
@@ -232,18 +227,12 @@ const App: React.FC = () => {
         imageRendering: 'pixelated'
       }}
     >
-      {/* ARENA FROSTED GLASS OVERLAY */}
       <div className="arena-frosted-glass">
           <div className="arena-glass-glare"></div>
       </div>
 
-      {/* TV CASE */}
       <div className="tv-case" id="tour-tv-case">
-        
-        {/* BEZEL */}
         <div className="tv-screen-bezel">
-            
-            {/* GLASS CONTAINER */}
             <div className="tv-glass-container relative" style={{width: '800px', height: '400px'}}>
                 <canvas
                     ref={canvasRef}
@@ -252,13 +241,15 @@ const App: React.FC = () => {
                     onContextMenu={(e) => e.preventDefault()}
                 />
 
-                {/* MENU OVERLAY */}
                 {menuState !== 'game' && (
                     <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-center z-20">
                         {menuState === 'main' && (
                             <div className="flex flex-col gap-4 items-center">
-                                <button id="tour-local-btn" onClick={startLocalGame} className="bg-[#4ecdc4] text-[#1a1a2e] px-8 py-3 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition shadow-[0_0_15px_rgba(78,205,196,0.4)]">
+                                <button id="tour-local-btn" onClick={startLocalGame} className="w-full bg-[#4ecdc4] text-[#1a1a2e] px-8 py-3 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition shadow-[0_0_15px_rgba(78,205,196,0.4)]">
                                     LOCAL 2 PLAYER
+                                </button>
+                                <button id="tour-cpu-btn" onClick={startCpuGame} className="w-full bg-[#feca57] text-[#1a1a2e] px-8 py-3 rounded-lg font-bold text-xl hover:bg-[#e1b12c] transition shadow-[0_0_15px_rgba(254,202,87,0.4)]">
+                                    VS CPU
                                 </button>
                                 <div className="flex gap-4" id="tour-online-section">
                                     <button onClick={handleHost} className="bg-[#e94560] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#d13650] shadow-[0_0_15px_rgba(233,69,96,0.4)]">
@@ -309,7 +300,6 @@ const App: React.FC = () => {
                             <div className="flex flex-col bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px] max-h-[370px] overflow-hidden z-50">
                                 <div className="overflow-y-auto px-6 py-3 flex flex-col items-center gap-2">
                                     <h2 className="text-2xl text-[#e94560] font-bold tracking-wider mb-1">SETTINGS</h2>
-                                    
                                     <div className="w-full">
                                         <label className="flex justify-between text-[#4ecdc4] mb-1 font-bold text-sm">
                                             <span>SFX VOLUME</span>
@@ -317,75 +307,39 @@ const App: React.FC = () => {
                                         </label>
                                         <input 
                                             type="range" 
-                                            min="0" 
-                                            max="1" 
-                                            step="0.05"
+                                            min="0" max="1" step="0.05"
                                             value={gameState.sfxVolume}
                                             onChange={handleVolumeChange}
                                             className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560] hover:accent-[#ff6b81]"
                                         />
                                     </div>
-
                                     <div className="w-full flex flex-col gap-1.5">
                                         <div className="text-[#4ecdc4] font-bold text-sm mt-1">VISUALS</div>
                                         <label className="flex items-center justify-between cursor-pointer group">
                                             <span className="text-gray-300 text-xs group-hover:text-white transition-colors">Scanlines</span>
-                                            <input 
-                                                type="checkbox" 
-                                                checked={gameState.crtScanlines} 
-                                                onChange={() => toggleSetting('crtScanlines')}
-                                                className="w-3.5 h-3.5 accent-[#e94560]"
-                                            />
+                                            <input type="checkbox" checked={gameState.crtScanlines} onChange={() => toggleSetting('crtScanlines')} className="w-3.5 h-3.5 accent-[#e94560]"/>
                                         </label>
                                         <label className="flex items-center justify-between cursor-pointer group">
                                             <span className="text-gray-300 text-xs group-hover:text-white transition-colors">Vignette</span>
-                                            <input 
-                                                type="checkbox" 
-                                                checked={gameState.crtVignette} 
-                                                onChange={() => toggleSetting('crtVignette')}
-                                                className="w-3.5 h-3.5 accent-[#e94560]"
-                                            />
+                                            <input type="checkbox" checked={gameState.crtVignette} onChange={() => toggleSetting('crtVignette')} className="w-3.5 h-3.5 accent-[#e94560]"/>
                                         </label>
                                         <label className="flex items-center justify-between cursor-pointer group">
                                             <span className="text-gray-300 text-xs group-hover:text-white transition-colors">Flicker</span>
-                                            <input 
-                                                type="checkbox" 
-                                                checked={gameState.crtFlicker} 
-                                                onChange={() => toggleSetting('crtFlicker')}
-                                                className="w-3.5 h-3.5 accent-[#e94560]"
-                                            />
+                                            <input type="checkbox" checked={gameState.crtFlicker} onChange={() => toggleSetting('crtFlicker')} className="w-3.5 h-3.5 accent-[#e94560]"/>
                                         </label>
                                     </div>
-
                                     <div className="flex flex-col gap-2 w-full mt-2">
                                         <div className="flex gap-2">
-                                          <button 
-                                              onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} 
-                                              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-xs transition-colors"
-                                          >
-                                              SFX TEST
-                                          </button>
-                                          <button 
-                                              onClick={playBase64Mp3} 
-                                              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-xs transition-colors"
-                                          >
-                                              SONG
-                                          </button>
+                                          <button onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-xs transition-colors">SFX TEST</button>
+                                          <button onClick={playBase64Mp3} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-xs transition-colors">SONG</button>
                                         </div>
-                                        <button 
-                                            onClick={() => setMenuState('main')} 
-                                            className="w-full bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-1.5 rounded font-bold text-sm transition-colors"
-                                        >
-                                            DONE
-                                        </button>
+                                        <button onClick={() => setMenuState('main')} className="w-full bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-1.5 rounded font-bold text-sm transition-colors">DONE</button>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* IN-GAME INSTRUCTION OVERLAY BOXES */}
                         <div className="absolute bottom-6 left-6 right-6 flex gap-6 z-30" id="tour-controls">
-                            {/* P1 Controls Box */}
                             <div className="flex-1 bg-[#1a1a2e] border border-[#2a2a4e] p-3 rounded-xl shadow-2xl flex gap-3 items-start">
                                 <div className="w-6 h-6 rounded-full bg-[#4ecdc4]/20 flex items-center justify-center text-[#4ecdc4] font-bold text-xs border border-[#4ecdc4]/40">i</div>
                                 <div className="flex flex-col">
@@ -396,12 +350,12 @@ const App: React.FC = () => {
                                     </ul>
                                 </div>
                             </div>
-
-                            {/* P2 Controls Box */}
-                            <div className="flex-1 bg-[#1a1a2e] border border-[#2a2a4e] p-3 rounded-xl shadow-2xl flex gap-3 items-start">
-                                <div className="w-6 h-6 rounded-full bg-[#e94560]/20 flex items-center justify-center text-[#e94560] font-bold text-xs border border-[#e94560]/40">i</div>
+                            <div className={`flex-1 bg-[#1a1a2e] border ${gameState.isCPUGame ? 'border-[#4ecdc4]' : 'border-[#2a2a4e]'} p-3 rounded-xl shadow-2xl flex gap-3 items-start`}>
+                                <div className={`w-6 h-6 rounded-full ${gameState.isCPUGame ? 'bg-[#4ecdc4]/20 text-[#4ecdc4] border-[#4ecdc4]/40' : 'bg-[#e94560]/20 text-[#e94560] border-[#e94560]/40'} flex items-center justify-center font-bold text-xs border`}>i</div>
                                 <div className="flex flex-col">
-                                    <span className="text-[#e94560] font-bold text-[10px] uppercase tracking-widest mb-1">Player 2 Controls</span>
+                                    <span className={`${gameState.isCPUGame ? 'text-[#4ecdc4]' : 'text-[#e94560]'} font-bold text-[10px] uppercase tracking-widest mb-1`}>
+                                      {gameState.isCPUGame ? 'P1 Alt Controls' : 'Player 2 Controls'}
+                                    </span>
                                     <ul className="text-gray-300 text-[11px] space-y-0.5 leading-tight">
                                         <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> Arrows to Move</li>
                                         <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> 1 / 2 / 3 Action</li>
@@ -412,15 +366,12 @@ const App: React.FC = () => {
                     </div>
                 )}
                 
-                {/* Replay Overlay Controls */}
                 {gameState.isReplaying && (
                     <div className="absolute bottom-0 left-0 right-0 bg-black/80 p-4 border-t-2 border-[#e94560] z-30">
                         <div className="flex flex-col gap-2">
                             <input 
                                 type="range" 
-                                min="0" 
-                                max="1" 
-                                step="0.001"
+                                min="0" max="1" step="0.001"
                                 value={gameState.replayProgress}
                                 onChange={handleSeek}
                                 className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560]"
@@ -436,7 +387,6 @@ const App: React.FC = () => {
                     </div>
                 )}
 
-                {/* Game Over Overlay */}
                 {gameState.showGameOver && !gameState.isReplaying && !gameState.opponentDisconnected && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10">
                         <div className={`text-4xl drop-shadow-md font-bold mb-4 animate-bounce ${
@@ -476,7 +426,6 @@ const App: React.FC = () => {
                     </div>
                 )}
 
-                {/* Disconnected Overlay */}
                 {gameState.opponentDisconnected && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/85 z-50">
                         <div className="text-4xl text-[#e94560] drop-shadow-md font-bold mb-6">
@@ -491,13 +440,11 @@ const App: React.FC = () => {
                     </div>
                 )}
 
-                {/* SCANLINES OVERLAY (Inside the glass) */}
                 <div className={`crt-overlay ${gameState.crtScanlines ? 'crt-scanlines' : ''} ${gameState.crtVignette ? 'crt-vignette' : ''} ${gameState.crtFlicker ? 'crt-flicker' : ''}`}></div>
                 <div className="screen-reflection"></div>
             </div>
         </div>
 
-        {/* TV CONTROLS */}
         <div className="tv-controls">
             <div className="speaker-grill"></div>
             <div className="flex flex-col items-center">

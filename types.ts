@@ -26,6 +26,7 @@ export interface GameState {
     replaySpeed: number;
     // Network Info
     isMultiplayer: boolean;
+    isCPUGame?: boolean;
     connectionStatus: 'disconnected' | 'connecting' | 'connected';
     roomId?: string;
     isHost?: boolean;
