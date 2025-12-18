@@ -6,9 +6,40 @@ import { Engine, DisplayMode, Color } from 'excalibur';
 import { HockeyGame } from './game/HockeyGame';
 import { GameState } from './types';
 import { NetworkManager } from './game/NetworkManager';
+import { SMALLFONT_SHEET_B64 } from './game/sprites/smallfontsheet';
 
 // Declare Driver.js global if needed, but we use the IIFE version which attaches to window
 declare const driver: any;
+
+const ALPHABET = " !\"#©%&'()✓+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~■";
+
+const PixelText: React.FC<{ text: string; scale?: number }> = ({ text, scale = 3 }) => {
+  return (
+    <div className="flex flex-row gap-0">
+      {text.split('').map((char, i) => {
+        const index = ALPHABET.indexOf(char);
+        if (index === -1) return <div key={i} style={{ width: 8 * scale }} />;
+        
+        const col = index % 32;
+        const row = Math.floor(index / 32);
+        
+        return (
+          <div
+            key={i}
+            style={{
+              width: 8 * scale,
+              height: 8 * scale,
+              backgroundImage: `url(${SMALLFONT_SHEET_B64})`,
+              backgroundSize: `${32 * 8 * scale}px ${3 * 8 * scale + (8 * scale)}px`, // Account for the 8px top offset in sheet
+              backgroundPosition: `-${col * 8 * scale}px -${(row + 1) * 8 * scale}px`,
+              imageRendering: 'pixelated',
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+};
 
 const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -242,13 +273,16 @@ const App: React.FC = () => {
                 />
 
                 {menuState !== 'game' && (
-                    <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-center z-20">
+                    <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-start pt-10 z-20">
                         {menuState === 'main' && (
-                            <div className="flex flex-col gap-4 items-center">
-                                <button id="tour-local-btn" onClick={startLocalGame} className="w-full bg-[#4ecdc4] text-[#1a1a2e] px-8 py-3 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition shadow-[0_0_15px_rgba(78,205,196,0.4)]">
+                            <div className="flex flex-col gap-3 items-center">
+                                <div className="mb-2 drop-shadow-[0_0_8px_rgba(233,69,96,0.8)]">
+                                  <PixelText text="ENFORCER" scale={4} />
+                                </div>
+                                <button id="tour-local-btn" onClick={startLocalGame} className="w-full bg-[#4ecdc4] text-[#1a1a2e] px-8 py-2.5 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition shadow-[0_0_15px_rgba(78,205,196,0.4)]">
                                     LOCAL 2 PLAYER
                                 </button>
-                                <button id="tour-cpu-btn" onClick={startCpuGame} className="w-full bg-[#feca57] text-[#1a1a2e] px-8 py-3 rounded-lg font-bold text-xl hover:bg-[#e1b12c] transition shadow-[0_0_15px_rgba(254,202,87,0.4)]">
+                                <button id="tour-cpu-btn" onClick={startCpuGame} className="w-full bg-[#feca57] text-[#1a1a2e] px-8 py-2.5 rounded-lg font-bold text-xl hover:bg-[#e1b12c] transition shadow-[0_0_15px_rgba(254,202,87,0.4)]">
                                     VS CPU
                                 </button>
                                 <div className="flex gap-4" id="tour-online-section">
@@ -259,14 +293,14 @@ const App: React.FC = () => {
                                         JOIN ONLINE
                                     </button>
                                 </div>
-                                <button id="tour-settings-btn" onClick={() => setMenuState('settings')} className="text-gray-400 hover:text-white mt-4 font-bold tracking-widest text-sm border-b border-transparent hover:border-white transition-all">
+                                <button id="tour-settings-btn" onClick={() => setMenuState('settings')} className="text-gray-400 hover:text-white mt-2 font-bold tracking-widest text-sm border-b border-transparent hover:border-white transition-all">
                                     ⚙️ SETTINGS
                                 </button>
                             </div>
                         )}
 
                         {menuState === 'host' && (
-                            <div className="flex flex-col items-center gap-4 text-center p-6">
+                            <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-6">
                                 <h2 className="text-2xl text-[#4ecdc4] font-bold">WAITING FOR PLAYER...</h2>
                                 <div className="bg-[#16213e] p-4 rounded border border-gray-600">
                                     <p className="text-gray-400 text-sm mb-1">SHARE THIS ROOM ID:</p>
@@ -278,7 +312,7 @@ const App: React.FC = () => {
                         )}
 
                         {menuState === 'join' && (
-                            <div className="flex flex-col items-center gap-4">
+                            <div className="flex flex-col items-center justify-center h-full gap-4">
                                 <h2 className="text-2xl text-[#e94560] font-bold">JOIN GAME</h2>
                                 <input 
                                     type="text" 
@@ -297,7 +331,7 @@ const App: React.FC = () => {
                         )}
 
                         {menuState === 'settings' && (
-                            <div className="flex flex-col bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px] max-h-[370px] overflow-hidden z-50">
+                            <div className="flex flex-col bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px] max-h-[370px] overflow-hidden z-50 my-auto">
                                 <div className="overflow-y-auto px-6 py-3 flex flex-col items-center gap-2">
                                     <h2 className="text-2xl text-[#e94560] font-bold tracking-wider mb-1">SETTINGS</h2>
                                     <div className="w-full">
