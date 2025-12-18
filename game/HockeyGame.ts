@@ -5,7 +5,7 @@ import { Player } from "./Player";
 import { Gloves } from "./Gloves";
 import { Net } from "./Net";
 import { BloodParticle } from "./BloodParticle";
-import { GameSnapshot, GameState, EntitySnapshot } from "../types";
+import { GameSnapshot, GameState, EntitySnapshot, GamepadSettings } from "../types";
 import { NetworkManager } from "./NetworkManager";
 import { CameraManager } from "./CameraManager";
 import { ReplayManager } from "./ReplayManager";
@@ -53,6 +53,12 @@ export class HockeyGame extends Engine {
     
     // Settings
     public sfxVolume: number = 0.15;
+    public gamepadSettings: GamepadSettings = {
+        p1Index: null,
+        p2Index: null,
+        p1Mapping: { highPunch: 3, lowPunch: 0, grab: 2 }, // Default face buttons (Top, Bottom, Left)
+        p2Mapping: { highPunch: 3, lowPunch: 0, grab: 2 }
+    };
 
     public get isReplaying(): boolean {
         return this.replayManager.isReplaying;
@@ -66,7 +72,7 @@ export class HockeyGame extends Engine {
                 this.replayManager.recordFrame();
                 this.checkGameOver();
                 
-                if (this.isGameOver && this.winner && this.timescale >= 1.0) {
+                if (this.isGameOver && this.winner && (this as any).timescale >= 1.0) {
                     this.koTimer += evt.elapsed;
                 }
 
@@ -82,7 +88,7 @@ export class HockeyGame extends Engine {
 
     private onGlovesDropped = (evt: any) => {
         const gloves = new Gloves(evt.x, evt.y, evt.isPlayer1);
-        (this.currentScene as any).add(gloves);
+        ((this as any).currentScene as any).add(gloves);
     };
 
     private onGlovesLanded = () => {
@@ -127,6 +133,10 @@ export class HockeyGame extends Engine {
         this.updateUI();
     }
 
+    public updateGamepadSettings(settings: GamepadSettings) {
+        this.gamepadSettings = settings;
+    }
+
     public playHitSound(type: 'high' | 'low') {
         if (!this.replayManager.isReplaying) {
             const vol = this.sfxVolume;
@@ -163,7 +173,7 @@ export class HockeyGame extends Engine {
 
                 const isFinisher = victim.health - 1 <= 0;
                 victim.takeDamage(damageType);
-                const dir = attacker.pos.x < victim.pos.x ? 1 : -1;
+                const dir = (attacker as any).pos.x < (victim as any).pos.x ? 1 : -1;
                 const force = isFinisher ? FINISHER_KNOCKBACK_FORCE : KNOCKBACK_FORCE;
                 victim.vx += dir * force;
 
@@ -173,10 +183,10 @@ export class HockeyGame extends Engine {
                 if (damageType === 'high') {
                     const amount = 6 + Math.floor(Math.random() * 4); 
                     for (let i = 0; i < amount; i++) {
-                        const spawnX = victim.pos.x;
-                        const spawnY = victim.pos.y - 70 + (Math.random() * 20 - 10);
+                        const spawnX = (victim as any).pos.x;
+                        const spawnY = (victim as any).pos.y - 70 + (Math.random() * 20 - 10);
                         const blood = new BloodParticle(spawnX, spawnY, dir);
-                        this.currentScene.add(blood);
+                        (this as any).currentScene.add(blood);
                     }
                 }
             } else if (msg.type === 'RESTART') {
@@ -223,9 +233,9 @@ export class HockeyGame extends Engine {
     }
 
     public reset(cpuMode: boolean) {
-        const scene = this.currentScene as Scene;
+        const scene = (this as any).currentScene as Scene;
         scene.clear();
-        this.timescale = 1.0;
+        (this as any).timescale = 1.0;
         this.isCPUGame = cpuMode;
 
         const rink = new Rink(0, 0);
@@ -307,8 +317,8 @@ export class HockeyGame extends Engine {
         scene.on('glovesDropped', this.onGlovesDropped);
         scene.on('glovesLanded', this.onGlovesLanded);
 
-        this.off('postupdate', this.handlePostUpdate);
-        this.on('postupdate', this.handlePostUpdate);
+        (this as any).off('postupdate', this.handlePostUpdate);
+        (this as any).on('postupdate', this.handlePostUpdate);
     }
 
     public toggleReplay(enable: boolean) {
@@ -328,7 +338,7 @@ export class HockeyGame extends Engine {
 
         if (!this.isGameOver) {
             if (this.player1.state === 'falling' || this.player2.state === 'falling') {
-                this.timescale = 0.25;
+                (this as any).timescale = 0.25;
             }
 
             if (this.player1.state === 'down' || this.player1.state === 'falling') {
@@ -340,10 +350,10 @@ export class HockeyGame extends Engine {
             }
         }
 
-        if (this.isGameOver && this.timescale < 1.0) {
+        if (this.isGameOver && (this as any).timescale < 1.0) {
             const loser = this.winner === 'PLAYER 1' ? this.player2 : this.player1;
             if (loser && loser.state === 'down') {
-                this.timescale = 1.0;
+                (this as any).timescale = 1.0;
             }
         }
 
@@ -388,7 +398,8 @@ export class HockeyGame extends Engine {
                 roomId: this.networkManager ? '...' : undefined,
                 isHost: this.isHost,
                 opponentDisconnected: this.opponentDisconnected,
-                sfxVolume: this.sfxVolume
+                sfxVolume: this.sfxVolume,
+                gamepadConfig: this.gamepadSettings
             });
         }
     }

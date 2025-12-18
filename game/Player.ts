@@ -1,7 +1,7 @@
 
-import { Actor, Engine, SpriteSheet, Animation, AnimationStrategy, Keys, vec, Vector, Color, GraphicsGroup, Frame } from "excalibur";
+import { Actor, Engine, SpriteSheet, Animation, AnimationStrategy, Keys, vec, Vector, Color, GraphicsGroup, Frame, Buttons, Axes } from "excalibur";
 import { SCALE, SPRITE_WIDTH, SPRITE_HEIGHT, ANIMATIONS, MOVE_SPEED, FRICTION, HIT_RANGE, HITBOX_WIDTH, FRAMES, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE, FINISHER_KNOCKBACK_FORCE, BOUNCE_FACTOR, STAR_WIDTH, STAR_HEIGHT, STANLEY_WIDTH, STANLEY_HEIGHT } from "../constants";
-import { AnimationState, PlayerSnapshot, SyncPayload } from "../types";
+import { AnimationState, PlayerSnapshot, SyncPayload, GamepadMapping } from "../types";
 import { HockeyGame } from "./HockeyGame";
 import { BloodParticle } from "./BloodParticle";
 
@@ -104,7 +104,7 @@ export class Player extends Actor {
             sprite.scale = vec(SCALE, SCALE);
             star.graphics.use(sprite);
         }
-        this.addChild(star);
+        (this as any).addChild(star);
     }
 
     onPreUpdate(engine: Engine, delta: number) {
@@ -128,7 +128,7 @@ export class Player extends Actor {
     private handleAIInput(delta: number) {
         if (this.state === 'held' || this.state === 'falling' || this.state === 'down' || this.state === 'win' || !this.opponent) return;
 
-        const dist = Math.abs(this.pos.x - this.opponent.pos.x);
+        const dist = Math.abs((this as any).pos.x - (this.opponent as any).pos.x);
         const opponentIsAttacking = this.opponent.state.includes('punch') || this.opponent.state === 'grab';
         const opponentIsStunned = this.opponent.state.includes('hit') || this.opponent.state === 'held';
         
@@ -138,7 +138,7 @@ export class Player extends Actor {
         // If player is punching, CPU retreats aggressively
         if (opponentIsAttacking && dist < HIT_RANGE + 30 && !this.animLocked) {
             if (Math.random() < this.aiDifficulty) {
-                const dirAway = this.pos.x < this.opponent.pos.x ? -1 : 1;
+                const dirAway = (this as any).pos.x < (this.opponent as any).pos.x ? -1 : 1;
                 this.vx += dirAway * (MOVE_SPEED * 2.5); // Very fast retreat to break combos
                 return;
             }
@@ -155,7 +155,7 @@ export class Player extends Actor {
         if (!this.animLocked) {
             // High level AI dances around the range to bait whiffs
             const idealDist = opponentIsStunned ? 20 : HIT_RANGE - 10;
-            const dir = this.pos.x < this.opponent.pos.x ? 1 : -1;
+            const dir = (this as any).pos.x < (this.opponent as any).pos.x ? 1 : -1;
             
             if (dist > idealDist + 5) {
                 this.vx += dir * (MOVE_SPEED * 1.2);
@@ -188,8 +188,8 @@ export class Player extends Actor {
 
     public getSyncState(): SyncPayload {
         return {
-            x: this.pos.x,
-            y: this.pos.y,
+            x: (this as any).pos.x,
+            y: (this as any).pos.y,
             vx: this.vx,
             state: this.state,
             facingRight: this.facingRight,
@@ -198,8 +198,8 @@ export class Player extends Actor {
     }
 
     public syncFromNetwork(data: SyncPayload) {
-        this.pos.x = data.x;
-        this.pos.y = data.y;
+        (this as any).pos.x = data.x;
+        (this as any).pos.y = data.y;
         this.vx = data.vx;
         this.facingRight = data.facingRight;
         this.health = data.health;
@@ -209,35 +209,35 @@ export class Player extends Actor {
     }
 
     public getSnapshot(): PlayerSnapshot {
-        const currentAnim = this.graphics.current as Animation;
+        const currentAnim = (this as any).graphics.current as Animation;
         const idx = currentAnim ? currentAnim.currentFrameIndex : 0;
         return {
-            x: this.pos.x,
-            y: this.pos.y,
+            x: (this as any).pos.x,
+            y: (this as any).pos.y,
             state: this.state,
             frameIndex: idx,
             facingRight: this.facingRight,
             health: this.health,
-            visible: this.graphics.visible
+            visible: (this as any).graphics.visible
         };
     }
 
     public setFromSnapshot(snap: PlayerSnapshot) {
-        this.pos.x = snap.x;
-        this.pos.y = snap.y;
+        (this as any).pos.x = snap.x;
+        (this as any).pos.y = snap.y;
         this.facingRight = snap.facingRight;
         this.health = snap.health;
-        this.graphics.visible = snap.visible;
+        (this as any).graphics.visible = snap.visible;
 
         if (this.state !== snap.state) {
             this.state = snap.state;
             const anim = this.animations.get(this.state);
             if (anim) {
-                this.graphics.use(anim);
+                (this as any).graphics.use(anim);
             }
         }
 
-        const currentAnim = this.graphics.current as Animation;
+        const currentAnim = (this as any).graphics.current as Animation;
         if (currentAnim) {
             if (currentAnim.currentFrameIndex !== snap.frameIndex) {
                 currentAnim.goToFrame(snap.frameIndex);
@@ -270,7 +270,7 @@ export class Player extends Actor {
                 anim.goToFrame(startFrame);
             }
             anim.play(); 
-            this.graphics.use(anim);
+            (this as any).graphics.use(anim);
         }
     }
 
@@ -288,6 +288,7 @@ export class Player extends Actor {
         let low = false;
         let grab = false;
 
+        // --- Keyboard Controls ---
         if (!isMultiplayer) {
             if (this.isPlayer1) {
                 if (isCPUGame) {
@@ -318,6 +319,35 @@ export class Player extends Actor {
             if (k.wasPressed(Keys.L) || k.wasPressed(Keys.Num3) || k.wasPressed(Keys.Numpad3)) grab = true;
         }
 
+        // --- Gamepad Controls ---
+        const gpSettings = game.gamepadSettings;
+        const gpIndex = this.isPlayer1 ? gpSettings.p1Index : gpSettings.p2Index;
+        const mapping = this.isPlayer1 ? gpSettings.p1Mapping : gpSettings.p2Mapping;
+
+        if (gpIndex !== null) {
+            const gamepad = engine.input.gamepads.at(gpIndex);
+            
+            // Movement: D-Pad or Left Stick
+            if (gamepad.isButtonHeld(Buttons.DpadLeft) || gamepad.getAxes(Axes.LeftStickX) < -0.5) {
+                left = true;
+            }
+            if (gamepad.isButtonHeld(Buttons.DpadRight) || gamepad.getAxes(Axes.LeftStickX) > 0.5) {
+                right = true;
+            }
+
+            // Actions
+            if (gamepad.wasButtonPressed(mapping.highPunch)) {
+                high = true;
+            }
+            if (gamepad.wasButtonPressed(mapping.lowPunch)) {
+                low = true;
+            }
+            if (gamepad.wasButtonPressed(mapping.grab)) {
+                grab = true;
+            }
+        }
+
+        // --- Execution ---
         if (left) this.vx -= MOVE_SPEED;
         if (right) this.vx += MOVE_SPEED;
         if (high) this.setState('high_punch');
@@ -326,19 +356,19 @@ export class Player extends Actor {
     }
 
     private applyPhysics() {
-        this.pos.x += this.vx;
+        (this as any).pos.x += this.vx;
         this.vx *= FRICTION;
 
         const margin = 100;
         const leftLimit = margin;
         const rightLimit = 800 - margin;
 
-        if (this.pos.x < leftLimit) {
-            this.pos.x = leftLimit;
+        if ((this as any).pos.x < leftLimit) {
+            (this as any).pos.x = leftLimit;
             if (this.vx < 0) this.vx = -this.vx * BOUNCE_FACTOR;
         }
-        if (this.pos.x > rightLimit) {
-            this.pos.x = rightLimit;
+        if ((this as any).pos.x > rightLimit) {
+            (this as any).pos.x = rightLimit;
             if (this.vx > 0) this.vx = -this.vx * BOUNCE_FACTOR;
         }
     }
@@ -346,16 +376,16 @@ export class Player extends Actor {
     private checkCollisions() {
         if (!this.opponent || this.state === 'down' || this.state === 'falling') return;
         const minDist = HITBOX_WIDTH;
-        const dist = Math.abs(this.pos.x - this.opponent.pos.x);
+        const dist = Math.abs((this as any).pos.x - (this.opponent as any).pos.x);
         if (dist < minDist) {
-             if (this.pos.x < this.opponent.pos.x) {
-                this.pos.x = this.opponent.pos.x - minDist;
+             if ((this as any).pos.x < (this.opponent as any).pos.x) {
+                (this as any).pos.x = (this.opponent as any).pos.x - minDist;
             } else {
-                this.pos.x = this.opponent.pos.x + minDist;
+                (this as any).pos.x = (this.opponent as any).pos.x + minDist;
             }
             this.vx = 0;
         }
-        this.facingRight = this.pos.x < this.opponent.pos.x;
+        this.facingRight = (this as any).pos.x < (this.opponent as any).pos.x;
     }
 
     private updateAnimationLogic() {
@@ -381,10 +411,10 @@ export class Player extends Actor {
 
     private checkHit(hitType: 'high' | 'low' | 'grab') {
         if (!this.opponent) return;
-        const dist = Math.abs(this.pos.x - this.opponent.pos.x);
+        const dist = Math.abs((this as any).pos.x - (this.opponent as any).pos.x);
         if (dist <= HIT_RANGE) {
             this.hitDealt = true;
-            const game = this.scene?.engine as unknown as HockeyGame;
+            const game = (this as any).scene?.engine as unknown as HockeyGame;
             const isMultiplayer = game?.networkManager;
             let hitSuccessful = false;
 
@@ -397,10 +427,10 @@ export class Player extends Actor {
                 if (this.opponent.canBeHit()) {
                     const isFinisher = this.opponent.health - 1 <= 0;
                     this.opponent.takeDamage(hitType);
-                    const dir = this.pos.x < this.opponent.pos.x ? 1 : -1;
+                    const dir = (this as any).pos.x < (this.opponent as any).pos.x ? 1 : -1;
                     const force = isFinisher ? FINISHER_KNOCKBACK_FORCE : KNOCKBACK_FORCE;
                     this.opponent.vx += dir * force;
-                    if (this.scene && this.scene.engine) {
+                    if ((this as any).scene && (this as any).scene.engine) {
                         game.shake(200, 5); 
                         game.playHitSound(hitType);
                     }
@@ -408,11 +438,11 @@ export class Player extends Actor {
                         const amount = 6 + Math.floor(Math.random() * 4); 
                         const finalAmount = isFinisher ? amount * 10 : amount;
                         for (let i = 0; i < finalAmount; i++) {
-                            const spawnX = this.opponent.pos.x;
-                            const spawnY = this.opponent.pos.y - 70 + (Math.random() * 20 - 10);
+                            const spawnX = (this.opponent as any).pos.x;
+                            const spawnY = (this.opponent as any).pos.y - 70 + (Math.random() * 20 - 10);
                             const toCamera = isFinisher && (Math.random() < 0.6); 
                             const blood = new BloodParticle(spawnX, spawnY, dir, toCamera);
-                            this.scene?.add(blood);
+                            (this as any).scene?.add(blood);
                         }
                     }
                     hitSuccessful = true;
@@ -441,16 +471,16 @@ export class Player extends Actor {
             this.setState(type === 'high' ? 'hit_high' : 'hit_low');
             // BREAKAWAY LOGIC: If CPU is hit, boost velocity away to prevent stun lock
             if (this.isCPU) {
-                const dirAway = (this.opponent && this.pos.x < this.opponent.pos.x) ? -1 : 1;
+                const dirAway = (this.opponent && (this as any).pos.x < (this.opponent as any).pos.x) ? -1 : 1;
                 this.vx += dirAway * (MOVE_SPEED * 5); 
             }
         }
     }
 
     private dropGloves() {
-        (this.scene as any)?.emit('glovesDropped', { 
-            x: this.pos.x + (this.isPlayer1 ? -20 : 20), 
-            y: this.pos.y + 60,
+        ((this as any).scene as any)?.emit('glovesDropped', { 
+            x: (this as any).pos.x + (this.isPlayer1 ? -20 : 20), 
+            y: (this as any).pos.y + 60,
             isPlayer1: this.isPlayer1 
         });
     }

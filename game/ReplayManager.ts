@@ -53,9 +53,9 @@ export class ReplayManager {
             this.replayIndex = 0;
             this.playbackSpeed = 1;
             
-            this.game.currentScene.actors.forEach((actor: any) => {
+            (this.game as any).currentScene.actors.forEach((actor: any) => {
                 if (actor instanceof BloodParticle || actor instanceof Gloves) {
-                    actor.kill();
+                    (actor as any).kill();
                 }
             });
         } else {
@@ -80,23 +80,23 @@ export class ReplayManager {
 
         const entities: EntitySnapshot[] = [];
         
-        this.game.currentScene.actors.forEach((actor: any) => {
+        (this.game as any).currentScene.actors.forEach((actor: any) => {
             if (actor instanceof BloodParticle) {
                  entities.push({
                      type: 'blood',
-                     x: actor.pos.x,
-                     y: actor.pos.y,
-                     scale: actor.scale.x,
-                     color: actor.color.toHex(),
-                     zIndex: actor.z
+                     x: (actor as any).pos.x,
+                     y: (actor as any).pos.y,
+                     scale: (actor as any).scale.x,
+                     color: (actor as any).color.toHex(),
+                     zIndex: (actor as any).z
                  });
             } else if (actor instanceof Gloves) {
                  entities.push({
                      type: 'glove',
-                     x: actor.pos.x,
-                     y: actor.pos.y,
-                     scale: actor.scale.x,
-                     zIndex: actor.z,
+                     x: (actor as any).pos.x,
+                     y: (actor as any).pos.y,
+                     scale: (actor as any).scale.x,
+                     zIndex: (actor as any).z,
                      isPlayer1: (actor as Gloves).isPlayer1
                  });
             }
@@ -105,8 +105,8 @@ export class ReplayManager {
         this.replayBuffer.push({
             p1: this.game.player1.getSnapshot(),
             p2: this.game.player2.getSnapshot(),
-            cameraPos: { x: this.game.currentScene.camera.pos.x, y: this.game.currentScene.camera.pos.y },
-            cameraZoom: this.game.currentScene.camera.zoom,
+            cameraPos: { x: (this.game as any).currentScene.camera.pos.x, y: (this.game as any).currentScene.camera.pos.y },
+            cameraZoom: (this.game as any).currentScene.camera.zoom,
             entities: entities,
             sounds: [...this.currentFrameSounds]
         });
@@ -161,8 +161,8 @@ export class ReplayManager {
 
         this.game.player1.setFromSnapshot(frame.p1);
         this.game.player2.setFromSnapshot(frame.p2);
-        this.game.currentScene.camera.pos = new Vector(frame.cameraPos.x, frame.cameraPos.y);
-        this.game.currentScene.camera.zoom = frame.cameraZoom;
+        (this.game as any).currentScene.camera.pos = new Vector(frame.cameraPos.x, frame.cameraPos.y);
+        (this.game as any).currentScene.camera.zoom = frame.cameraZoom;
 
         let poolIndex = 0;
 
@@ -171,7 +171,7 @@ export class ReplayManager {
 
             if (poolIndex >= this.replayPool.length) {
                 actor = new Actor({ anchor: vec(0.5, 0.5) }); 
-                this.game.currentScene.add(actor);
+                (this.game as any).currentScene.add(actor);
                 this.replayPool.push(actor);
             } else {
                 actor = this.replayPool[poolIndex];

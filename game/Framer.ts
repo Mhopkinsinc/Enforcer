@@ -94,6 +94,6 @@ export class Framer extends ScreenElement {
         }
 
         const group = new GraphicsGroup({ members });
-        this.graphics.use(group);
+        (this as any).graphics.use(group);
     }
 }

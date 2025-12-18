@@ -19,7 +19,7 @@ export class CameraManager {
     public reset() {
         this.shakeTimer = 0;
         this.shakeStrength = 0;
-        const scene = this.game.currentScene;
+        const scene = (this.game as any).currentScene;
         scene.camera.zoom = 1;
         scene.camera.pos = new Vector(400, 200);
     }
@@ -82,9 +82,9 @@ export class CameraManager {
         }
 
         const lerpFactor = 0.02; 
-        const currentZoom = this.game.currentScene.camera.zoom;
+        const currentZoom = (this.game as any).currentScene.camera.zoom;
         const newZoom = currentZoom + (targetZoom - currentZoom) * lerpFactor;
-        this.game.currentScene.camera.zoom = newZoom;
+        (this.game as any).currentScene.camera.zoom = newZoom;
 
         const viewWidth = SCREEN_WIDTH / newZoom;
         const viewHeight = SCREEN_HEIGHT / newZoom;
@@ -100,8 +100,8 @@ export class CameraManager {
         targetX = Math.max(minX, Math.min(targetX, maxX));
         targetY = Math.max(minY, Math.min(targetY, maxY));
 
-        const currentX = this.game.currentScene.camera.pos.x;
-        const currentY = this.game.currentScene.camera.pos.y;
+        const currentX = (this.game as any).currentScene.camera.pos.x;
+        const currentY = (this.game as any).currentScene.camera.pos.y;
         
         const newX = currentX + (targetX - currentX) * lerpFactor;
         const newY = currentY + (targetY - currentY) * lerpFactor;
@@ -115,6 +115,6 @@ export class CameraManager {
             shakeY = (Math.random() * this.shakeStrength * 2) - this.shakeStrength;
         }
 
-        this.game.currentScene.camera.pos = new Vector(newX + shakeX, newY + shakeY);
+        (this.game as any).currentScene.camera.pos = new Vector(newX + shakeX, newY + shakeY);
     }
 }

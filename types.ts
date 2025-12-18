@@ -13,6 +13,19 @@ export type AnimationState =
     | 'down'
     | 'win';
 
+export interface GamepadMapping {
+    highPunch: number;
+    lowPunch: number;
+    grab: number;
+}
+
+export interface GamepadSettings {
+    p1Index: number | null; // null = Keyboard
+    p2Index: number | null; // null = Keyboard
+    p1Mapping: GamepadMapping;
+    p2Mapping: GamepadMapping;
+}
+
 export interface GameState {
     p1Health: number;
     p2Health: number;
@@ -37,6 +50,8 @@ export interface GameState {
     crtScanlines?: boolean;
     crtFlicker?: boolean;
     crtVignette?: boolean;
+    // Controls
+    gamepadConfig: GamepadSettings;
 }
 
 export interface PlayerSnapshot {

@@ -31,7 +31,7 @@ export class Net extends Actor {
         const sprite = sheet.getSprite(0, 0);
         if (sprite) {
             sprite.scale = vec(SCALE, SCALE);
-            this.graphics.use(sprite);
+            (this as any).graphics.use(sprite);
         }
     }
 }

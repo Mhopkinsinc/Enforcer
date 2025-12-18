@@ -58,9 +58,9 @@ export class BloodParticle extends Actor {
         if (this.landed) {
             // If stuck to camera, fade out over time
             if (this.toCamera) {
-                this.graphics.opacity -= (delta / 1000) * 0.8; 
-                if (this.graphics.opacity <= 0) {
-                    this.kill();
+                (this as any).graphics.opacity -= (delta / 1000) * 0.8; 
+                if ((this as any).graphics.opacity <= 0) {
+                    (this as any).kill();
                 }
             }
             return;

@@ -43,7 +43,7 @@ export class HealthBar extends ScreenElement {
         }
 
         this.segmentGraphics = new GraphicsGroup({ members });
-        this.graphics.use(this.segmentGraphics);
+        (this as any).graphics.use(this.segmentGraphics);
     }
 
     onPreUpdate(engine: Engine) {

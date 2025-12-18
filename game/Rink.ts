@@ -18,6 +18,6 @@ export class Rink extends Actor {
         const game = engine as unknown as HockeyGame;
         const sprite = game.resources.RinkSheet.toSprite();
         sprite.scale = vec(SCALE, SCALE);
-        this.graphics.use(sprite);
+        (this as any).graphics.use(sprite);
     }
 }

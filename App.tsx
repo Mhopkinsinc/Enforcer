@@ -4,7 +4,7 @@ import { FULLRINK_SHEET_B64 } from './game/sprites/fullrinkbkg';
 import React, { useEffect, useRef, useState } from 'react';
 import { Engine, DisplayMode, Color } from 'excalibur';
 import { HockeyGame } from './game/HockeyGame';
-import { GameState } from './types';
+import { GameState, GamepadSettings } from './types';
 import { NetworkManager } from './game/NetworkManager';
 import { SMALLFONT_SHEET_B64 } from './game/sprites/smallfontsheet';
 
@@ -65,12 +65,21 @@ const App: React.FC = () => {
     sfxVolume: 0.15,
     crtScanlines: true,
     crtFlicker: true,
-    crtVignette: true
+    crtVignette: true,
+    gamepadConfig: {
+        p1Index: null,
+        p2Index: null,
+        p1Mapping: { highPunch: 3, lowPunch: 0, grab: 2 },
+        p2Mapping: { highPunch: 3, lowPunch: 0, grab: 2 }
+    }
   });
 
   const [menuState, setMenuState] = useState<'main' | 'host' | 'join' | 'game' | 'settings'>('main');
   const [roomId, setRoomId] = useState('');
   const [joinId, setJoinId] = useState('');
+  const [settingsTab, setSettingsTab] = useState<'audio_video' | 'controls'>('audio_video');
+  const [availableGamepads, setAvailableGamepads] = useState<(Gamepad | null)[]>([]);
+  const [remapping, setRemapping] = useState<{ player: 1 | 2, action: 'highPunch' | 'lowPunch' | 'grab' } | null>(null);
 
   // Initialize Engine
   useEffect(() => {
@@ -113,6 +122,50 @@ const App: React.FC = () => {
       if (musicRef.current) musicRef.current.pause();
     };
   }, []);
+
+  // Poll Gamepads for Settings Menu
+  useEffect(() => {
+    if (menuState !== 'settings') return;
+
+    const interval = setInterval(() => {
+        if (navigator.getGamepads) {
+            setAvailableGamepads(Array.from(navigator.getGamepads()));
+        }
+
+        // Remapping Logic
+        if (remapping) {
+            const gps = navigator.getGamepads ? Array.from(navigator.getGamepads()) : [];
+            const targetIndex = remapping.player === 1 ? gameState.gamepadConfig.p1Index : gameState.gamepadConfig.p2Index;
+            
+            if (targetIndex !== null && gps[targetIndex]) {
+                const gp = gps[targetIndex];
+                if (gp) {
+                    for (let i = 0; i < gp.buttons.length; i++) {
+                        if (gp.buttons[i].pressed) {
+                            // Assign button
+                            const newConfig = { ...gameState.gamepadConfig };
+                            if (remapping.player === 1) {
+                                newConfig.p1Mapping = { ...newConfig.p1Mapping, [remapping.action]: i };
+                            } else {
+                                newConfig.p2Mapping = { ...newConfig.p2Mapping, [remapping.action]: i };
+                            }
+                            
+                            setGameState(prev => ({ ...prev, gamepadConfig: newConfig }));
+                            if (gameRef.current) {
+                                gameRef.current.updateGamepadSettings(newConfig);
+                            }
+                            setRemapping(null); // End remapping
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [menuState, remapping, gameState.gamepadConfig]);
 
   // Effect for Walkthrough
   useEffect(() => {
@@ -229,6 +282,18 @@ const App: React.FC = () => {
       }
   };
 
+  const updateGamepadAssignment = (player: 1 | 2, indexString: string) => {
+      const index = indexString === 'kb' ? null : parseInt(indexString);
+      const newConfig = { ...gameState.gamepadConfig };
+      if (player === 1) newConfig.p1Index = index;
+      else newConfig.p2Index = index;
+
+      setGameState(prev => ({ ...prev, gamepadConfig: newConfig }));
+      if (gameRef.current) {
+          gameRef.current.updateGamepadSettings(newConfig);
+      }
+  };
+
   const playBase64Mp3 = () => {
     if (!THEME_SONG_B64) return;
     if (musicRef.current) {
@@ -331,44 +396,143 @@ const App: React.FC = () => {
                         )}
 
                         {menuState === 'settings' && (
-                            <div className="absolute bottom-[135px] left-1/2 -translate-x-1/2 flex flex-col bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px] overflow-hidden z-50">
-                                <div className="px-6 py-3 flex flex-col items-center gap-2">
-                                    <h2 className="text-xl text-[#e94560] font-bold tracking-wider">SETTINGS</h2>
-                                    <div className="w-full">
-                                        <label className="flex justify-between text-[#4ecdc4] mb-1 font-bold text-xs">
-                                            <span>SFX VOLUME</span>
-                                            <span>{Math.round(gameState.sfxVolume * 100)}%</span>
-                                        </label>
-                                        <input 
-                                            type="range" 
-                                            min="0" max="1" step="0.05"
-                                            value={gameState.sfxVolume}
-                                            onChange={handleVolumeChange}
-                                            className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560] hover:accent-[#ff6b81]"
-                                        />
-                                    </div>
-                                    <div className="w-full flex flex-col gap-1">
-                                        <div className="text-[#4ecdc4] font-bold text-[10px] uppercase">Visual Filters</div>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <label className="flex flex-col items-center cursor-pointer group">
-                                                <span className="text-gray-300 text-[10px] mb-1">Scan</span>
-                                                <input type="checkbox" checked={gameState.crtScanlines} onChange={() => toggleSetting('crtScanlines')} className="w-3 h-3 accent-[#e94560]"/>
-                                            </label>
-                                            <label className="flex flex-col items-center cursor-pointer group">
-                                                <span className="text-gray-300 text-[10px] mb-1">Vignette</span>
-                                                <input type="checkbox" checked={gameState.crtVignette} onChange={() => toggleSetting('crtVignette')} className="w-3 h-3 accent-[#e94560]"/>
-                                            </label>
-                                            <label className="flex flex-col items-center cursor-pointer group">
-                                                <span className="text-gray-300 text-[10px] mb-1">Flicker</span>
-                                                <input type="checkbox" checked={gameState.crtFlicker} onChange={() => toggleSetting('crtFlicker')} className="w-3 h-3 accent-[#e94560]"/>
-                                            </label>
+                            <div className="absolute top-[30px] bottom-[135px] left-1/2 -translate-x-1/2 flex flex-col bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[340px] overflow-hidden z-50">
+                                <div className="flex w-full border-b border-gray-700">
+                                    <button 
+                                        className={`flex-1 py-2 text-xs font-bold ${settingsTab === 'audio_video' ? 'bg-[#e94560] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                        onClick={() => setSettingsTab('audio_video')}
+                                    >
+                                        AUDIO / VIDEO
+                                    </button>
+                                    <button 
+                                        className={`flex-1 py-2 text-xs font-bold ${settingsTab === 'controls' ? 'bg-[#e94560] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                        onClick={() => setSettingsTab('controls')}
+                                    >
+                                        CONTROLS
+                                    </button>
+                                </div>
+                                <div className="px-6 py-3 flex flex-col items-center gap-2 overflow-y-auto max-h-[300px]">
+                                    {settingsTab === 'audio_video' && (
+                                        <>
+                                            <div className="w-full">
+                                                <label className="flex justify-between text-[#4ecdc4] mb-1 font-bold text-xs">
+                                                    <span>SFX VOLUME</span>
+                                                    <span>{Math.round(gameState.sfxVolume * 100)}%</span>
+                                                </label>
+                                                <input 
+                                                    type="range" 
+                                                    min="0" max="1" step="0.05"
+                                                    value={gameState.sfxVolume}
+                                                    onChange={handleVolumeChange}
+                                                    className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560] hover:accent-[#ff6b81]"
+                                                />
+                                            </div>
+                                            <div className="w-full flex flex-col gap-1">
+                                                <div className="text-[#4ecdc4] font-bold text-[10px] uppercase">Visual Filters</div>
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    <label className="flex flex-col items-center cursor-pointer group">
+                                                        <span className="text-gray-300 text-[10px] mb-1">Scan</span>
+                                                        <input type="checkbox" checked={gameState.crtScanlines} onChange={() => toggleSetting('crtScanlines')} className="w-3 h-3 accent-[#e94560]"/>
+                                                    </label>
+                                                    <label className="flex flex-col items-center cursor-pointer group">
+                                                        <span className="text-gray-300 text-[10px] mb-1">Vignette</span>
+                                                        <input type="checkbox" checked={gameState.crtVignette} onChange={() => toggleSetting('crtVignette')} className="w-3 h-3 accent-[#e94560]"/>
+                                                    </label>
+                                                    <label className="flex flex-col items-center cursor-pointer group">
+                                                        <span className="text-gray-300 text-[10px] mb-1">Flicker</span>
+                                                        <input type="checkbox" checked={gameState.crtFlicker} onChange={() => toggleSetting('crtFlicker')} className="w-3 h-3 accent-[#e94560]"/>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2 w-full mt-1">
+                                                <button onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-[10px] transition-colors">SFX TEST</button>
+                                                <button onClick={playBase64Mp3} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-[10px] transition-colors">SONG</button>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {settingsTab === 'controls' && (
+                                        <div className="w-full flex flex-col gap-3">
+                                            <div className="bg-black/30 p-2 rounded">
+                                                <div className="text-[#4ecdc4] font-bold text-[10px] uppercase mb-1">PLAYER 1 INPUT</div>
+                                                <select 
+                                                    className="w-full bg-[#1a1a2e] text-white text-xs border border-gray-600 rounded p-1"
+                                                    value={gameState.gamepadConfig.p1Index === null ? 'kb' : gameState.gamepadConfig.p1Index}
+                                                    onChange={(e) => updateGamepadAssignment(1, e.target.value)}
+                                                >
+                                                    <option value="kb">Keyboard (WASD)</option>
+                                                    {availableGamepads.map((gp, i) => gp && (
+                                                        <option key={i} value={i}>Gamepad {i + 1}: {gp.id.substring(0, 15)}...</option>
+                                                    ))}
+                                                </select>
+                                                {gameState.gamepadConfig.p1Index !== null && (
+                                                    <div className="mt-2 grid grid-cols-3 gap-1">
+                                                        <button 
+                                                            onClick={() => setRemapping({player: 1, action: 'highPunch'})}
+                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 1 && remapping?.action === 'highPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                                        >
+                                                            HI: {gameState.gamepadConfig.p1Mapping.highPunch}
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => setRemapping({player: 1, action: 'lowPunch'})}
+                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 1 && remapping?.action === 'lowPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                                        >
+                                                            LO: {gameState.gamepadConfig.p1Mapping.lowPunch}
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => setRemapping({player: 1, action: 'grab'})}
+                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 1 && remapping?.action === 'grab' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                                        >
+                                                            GR: {gameState.gamepadConfig.p1Mapping.grab}
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="bg-black/30 p-2 rounded">
+                                                <div className="text-[#e94560] font-bold text-[10px] uppercase mb-1">PLAYER 2 INPUT</div>
+                                                <select 
+                                                    className="w-full bg-[#1a1a2e] text-white text-xs border border-gray-600 rounded p-1"
+                                                    value={gameState.gamepadConfig.p2Index === null ? 'kb' : gameState.gamepadConfig.p2Index}
+                                                    onChange={(e) => updateGamepadAssignment(2, e.target.value)}
+                                                >
+                                                    <option value="kb">Keyboard (Arrows)</option>
+                                                    {availableGamepads.map((gp, i) => gp && (
+                                                        <option key={i} value={i}>Gamepad {i + 1}: {gp.id.substring(0, 15)}...</option>
+                                                    ))}
+                                                </select>
+                                                {gameState.gamepadConfig.p2Index !== null && (
+                                                    <div className="mt-2 grid grid-cols-3 gap-1">
+                                                        <button 
+                                                            onClick={() => setRemapping({player: 2, action: 'highPunch'})}
+                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 2 && remapping?.action === 'highPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                                        >
+                                                            HI: {gameState.gamepadConfig.p2Mapping.highPunch}
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => setRemapping({player: 2, action: 'lowPunch'})}
+                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 2 && remapping?.action === 'lowPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                                        >
+                                                            LO: {gameState.gamepadConfig.p2Mapping.lowPunch}
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => setRemapping({player: 2, action: 'grab'})}
+                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 2 && remapping?.action === 'grab' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                                        >
+                                                            GR: {gameState.gamepadConfig.p2Mapping.grab}
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {remapping && (
+                                                <div className="text-[10px] text-yellow-400 text-center animate-pulse">
+                                                    PRESS BUTTON ON CONTROLLER...
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
-                                    <div className="flex gap-2 w-full mt-1">
-                                        <button onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-[10px] transition-colors">SFX TEST</button>
-                                        <button onClick={playBase64Mp3} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-[10px] transition-colors">SONG</button>
-                                        <button onClick={() => setMenuState('main')} className="flex-1 bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-1 rounded font-bold text-[10px] transition-colors">DONE</button>
-                                    </div>
+                                    )}
+
+                                    <button onClick={() => setMenuState('main')} className="w-full mt-2 bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-1.5 rounded font-bold text-xs transition-colors">DONE</button>
                                 </div>
                             </div>
                         )}
@@ -379,8 +543,8 @@ const App: React.FC = () => {
                                 <div className="flex flex-col">
                                     <span className="text-[#4ecdc4] font-bold text-[10px] uppercase tracking-widest mb-1">Player 1 Controls</span>
                                     <ul className="text-gray-300 text-[11px] space-y-0.5 leading-tight">
-                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> WASD to Move</li>
-                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> J / K / L Action</li>
+                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> WASD / Stick</li>
+                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> J / K / L or Buttons</li>
                                     </ul>
                                 </div>
                             </div>
@@ -391,8 +555,8 @@ const App: React.FC = () => {
                                       {gameState.isCPUGame ? 'P1 Alt Controls' : 'Player 2 Controls'}
                                     </span>
                                     <ul className="text-gray-300 text-[11px] space-y-0.5 leading-tight">
-                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> Arrows to Move</li>
-                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> 1 / 2 / 3 Action</li>
+                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> Arrows / Stick</li>
+                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> 1 / 2 / 3 or Buttons</li>
                                     </ul>
                                 </div>
                             </div>
