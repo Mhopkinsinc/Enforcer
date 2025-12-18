@@ -274,7 +274,7 @@ const App: React.FC = () => {
 
                 {menuState !== 'game' && (
                     <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-start pt-10 z-20">
-                        {menuState === 'main' && (
+                        {(menuState === 'main' || menuState === 'settings') && (
                             <div className="flex flex-col gap-3 items-center">
                                 <div className="mb-2 drop-shadow-[0_0_8px_rgba(233,69,96,0.8)]">
                                   <PixelText text="ENFORCER" scale={4} />
@@ -293,14 +293,14 @@ const App: React.FC = () => {
                                         JOIN ONLINE
                                     </button>
                                 </div>
-                                <button id="tour-settings-btn" onClick={() => setMenuState('settings')} className="text-gray-400 hover:text-white mt-2 font-bold tracking-widest text-sm border-b border-transparent hover:border-white transition-all">
-                                    ⚙️ SETTINGS
+                                <button id="tour-settings-btn" onClick={() => setMenuState('settings')} className={`text-gray-400 hover:text-white mt-2 font-bold tracking-widest text-sm border-b transition-all ${menuState === 'settings' ? 'border-white text-white' : 'border-transparent'}`}>
+                                    {menuState === 'settings' ? 'CLOSE SETTINGS' : '⚙️ SETTINGS'}
                                 </button>
                             </div>
                         )}
 
                         {menuState === 'host' && (
-                            <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-6">
+                            <div className="flex flex-col items-center justify-center h-[280px] w-full gap-4 text-center p-6">
                                 <h2 className="text-2xl text-[#4ecdc4] font-bold">WAITING FOR PLAYER...</h2>
                                 <div className="bg-[#16213e] p-4 rounded border border-gray-600">
                                     <p className="text-gray-400 text-sm mb-1">SHARE THIS ROOM ID:</p>
@@ -312,7 +312,7 @@ const App: React.FC = () => {
                         )}
 
                         {menuState === 'join' && (
-                            <div className="flex flex-col items-center justify-center h-full gap-4">
+                            <div className="flex flex-col items-center justify-center h-[280px] w-full gap-4">
                                 <h2 className="text-2xl text-[#e94560] font-bold">JOIN GAME</h2>
                                 <input 
                                     type="text" 
@@ -331,11 +331,11 @@ const App: React.FC = () => {
                         )}
 
                         {menuState === 'settings' && (
-                            <div className="flex flex-col bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px] max-h-[370px] overflow-hidden z-50 my-auto">
-                                <div className="overflow-y-auto px-6 py-3 flex flex-col items-center gap-2">
-                                    <h2 className="text-2xl text-[#e94560] font-bold tracking-wider mb-1">SETTINGS</h2>
+                            <div className="absolute bottom-[135px] left-1/2 -translate-x-1/2 flex flex-col bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px] overflow-hidden z-50">
+                                <div className="px-6 py-3 flex flex-col items-center gap-2">
+                                    <h2 className="text-xl text-[#e94560] font-bold tracking-wider">SETTINGS</h2>
                                     <div className="w-full">
-                                        <label className="flex justify-between text-[#4ecdc4] mb-1 font-bold text-sm">
+                                        <label className="flex justify-between text-[#4ecdc4] mb-1 font-bold text-xs">
                                             <span>SFX VOLUME</span>
                                             <span>{Math.round(gameState.sfxVolume * 100)}%</span>
                                         </label>
@@ -347,27 +347,27 @@ const App: React.FC = () => {
                                             className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560] hover:accent-[#ff6b81]"
                                         />
                                     </div>
-                                    <div className="w-full flex flex-col gap-1.5">
-                                        <div className="text-[#4ecdc4] font-bold text-sm mt-1">VISUALS</div>
-                                        <label className="flex items-center justify-between cursor-pointer group">
-                                            <span className="text-gray-300 text-xs group-hover:text-white transition-colors">Scanlines</span>
-                                            <input type="checkbox" checked={gameState.crtScanlines} onChange={() => toggleSetting('crtScanlines')} className="w-3.5 h-3.5 accent-[#e94560]"/>
-                                        </label>
-                                        <label className="flex items-center justify-between cursor-pointer group">
-                                            <span className="text-gray-300 text-xs group-hover:text-white transition-colors">Vignette</span>
-                                            <input type="checkbox" checked={gameState.crtVignette} onChange={() => toggleSetting('crtVignette')} className="w-3.5 h-3.5 accent-[#e94560]"/>
-                                        </label>
-                                        <label className="flex items-center justify-between cursor-pointer group">
-                                            <span className="text-gray-300 text-xs group-hover:text-white transition-colors">Flicker</span>
-                                            <input type="checkbox" checked={gameState.crtFlicker} onChange={() => toggleSetting('crtFlicker')} className="w-3.5 h-3.5 accent-[#e94560]"/>
-                                        </label>
-                                    </div>
-                                    <div className="flex flex-col gap-2 w-full mt-2">
-                                        <div className="flex gap-2">
-                                          <button onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-xs transition-colors">SFX TEST</button>
-                                          <button onClick={playBase64Mp3} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-xs transition-colors">SONG</button>
+                                    <div className="w-full flex flex-col gap-1">
+                                        <div className="text-[#4ecdc4] font-bold text-[10px] uppercase">Visual Filters</div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <label className="flex flex-col items-center cursor-pointer group">
+                                                <span className="text-gray-300 text-[10px] mb-1">Scan</span>
+                                                <input type="checkbox" checked={gameState.crtScanlines} onChange={() => toggleSetting('crtScanlines')} className="w-3 h-3 accent-[#e94560]"/>
+                                            </label>
+                                            <label className="flex flex-col items-center cursor-pointer group">
+                                                <span className="text-gray-300 text-[10px] mb-1">Vignette</span>
+                                                <input type="checkbox" checked={gameState.crtVignette} onChange={() => toggleSetting('crtVignette')} className="w-3 h-3 accent-[#e94560]"/>
+                                            </label>
+                                            <label className="flex flex-col items-center cursor-pointer group">
+                                                <span className="text-gray-300 text-[10px] mb-1">Flicker</span>
+                                                <input type="checkbox" checked={gameState.crtFlicker} onChange={() => toggleSetting('crtFlicker')} className="w-3 h-3 accent-[#e94560]"/>
+                                            </label>
                                         </div>
-                                        <button onClick={() => setMenuState('main')} className="w-full bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-1.5 rounded font-bold text-sm transition-colors">DONE</button>
+                                    </div>
+                                    <div className="flex gap-2 w-full mt-1">
+                                        <button onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-[10px] transition-colors">SFX TEST</button>
+                                        <button onClick={playBase64Mp3} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-[10px] transition-colors">SONG</button>
+                                        <button onClick={() => setMenuState('main')} className="flex-1 bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-1 rounded font-bold text-[10px] transition-colors">DONE</button>
                                     </div>
                                 </div>
                             </div>
