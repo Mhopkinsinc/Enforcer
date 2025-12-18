@@ -1,3 +1,4 @@
+
 import { THEME_SONG_B64 } from './game/sfx/music';
 import { FULLRINK_SHEET_B64 } from './game/sprites/fullrinkbkg';
 import React, { useEffect, useRef, useState } from 'react';
@@ -5,6 +6,9 @@ import { Engine, DisplayMode, Color } from 'excalibur';
 import { HockeyGame } from './game/HockeyGame';
 import { GameState } from './types';
 import { NetworkManager } from './game/NetworkManager';
+
+// Declare Driver.js global if needed, but we use the IIFE version which attaches to window
+declare const driver: any;
 
 const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -80,6 +84,30 @@ const App: React.FC = () => {
       if (musicRef.current) musicRef.current.pause();
     };
   }, []);
+
+  // Effect for Walkthrough
+  useEffect(() => {
+    if (menuState === 'main') {
+      const tourComplete = localStorage.getItem('hockey_fight_tour_complete');
+      if (!tourComplete && typeof (window as any).driver !== 'undefined') {
+        const driverObj = (window as any).driver.js.driver({
+          showProgress: true,
+          steps: [            
+            { element: '#tour-local-btn', popover: { title: 'Local Play', description: '2 Player Local Play, on the same computer', side: "bottom", align: 'start' }},
+            { element: '#tour-online-section', popover: { title: 'Online Play', description: 'Host or Connect to a friends room', side: "bottom", align: 'start' }},
+            { element: '#tour-settings-btn', popover: { title: 'Settings', description: 'Joystick, Volume, CRT Filters', side: "top", align: 'start' }},
+            { element: '#tour-controls', popover: { title: 'Keyboard Controls', description: 'Default Keyboard Buttons', side: "top", align: 'start' }},
+          ],
+          onDestroyStarted: () => {
+            localStorage.setItem('hockey_fight_tour_complete', 'true');
+            driverObj.destroy();
+          }
+        });
+
+        driverObj.drive();
+      }
+    }
+  }, [menuState]);
 
   // Effect to stop music when game ends or someone wins
   useEffect(() => {
@@ -210,7 +238,7 @@ const App: React.FC = () => {
       </div>
 
       {/* TV CASE */}
-      <div className="tv-case">
+      <div className="tv-case" id="tour-tv-case">
         
         {/* BEZEL */}
         <div className="tv-screen-bezel">
@@ -229,10 +257,10 @@ const App: React.FC = () => {
                     <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-center z-20">
                         {menuState === 'main' && (
                             <div className="flex flex-col gap-4 items-center">
-                                <button onClick={startLocalGame} className="bg-[#4ecdc4] text-[#1a1a2e] px-8 py-3 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition shadow-[0_0_15px_rgba(78,205,196,0.4)]">
+                                <button id="tour-local-btn" onClick={startLocalGame} className="bg-[#4ecdc4] text-[#1a1a2e] px-8 py-3 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition shadow-[0_0_15px_rgba(78,205,196,0.4)]">
                                     LOCAL 2 PLAYER
                                 </button>
-                                <div className="flex gap-4">
+                                <div className="flex gap-4" id="tour-online-section">
                                     <button onClick={handleHost} className="bg-[#e94560] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#d13650] shadow-[0_0_15px_rgba(233,69,96,0.4)]">
                                         HOST ONLINE
                                     </button>
@@ -240,7 +268,7 @@ const App: React.FC = () => {
                                         JOIN ONLINE
                                     </button>
                                 </div>
-                                <button onClick={() => setMenuState('settings')} className="text-gray-400 hover:text-white mt-4 font-bold tracking-widest text-sm border-b border-transparent hover:border-white transition-all">
+                                <button id="tour-settings-btn" onClick={() => setMenuState('settings')} className="text-gray-400 hover:text-white mt-4 font-bold tracking-widest text-sm border-b border-transparent hover:border-white transition-all">
                                     ⚙️ SETTINGS
                                 </button>
                             </div>
@@ -356,7 +384,7 @@ const App: React.FC = () => {
                         )}
 
                         {/* IN-GAME INSTRUCTION OVERLAY BOXES */}
-                        <div className="absolute bottom-6 left-6 right-6 flex gap-6 z-30">
+                        <div className="absolute bottom-6 left-6 right-6 flex gap-6 z-30" id="tour-controls">
                             {/* P1 Controls Box */}
                             <div className="flex-1 bg-[#1a1a2e] border border-[#2a2a4e] p-3 rounded-xl shadow-2xl flex gap-3 items-start">
                                 <div className="w-6 h-6 rounded-full bg-[#4ecdc4]/20 flex items-center justify-center text-[#4ecdc4] font-bold text-xs border border-[#4ecdc4]/40">i</div>

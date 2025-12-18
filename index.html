@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -5,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hockey Fight</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Driver.js Styles -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css"/>
     <script type="importmap">
 {
   "imports": {
@@ -12,7 +15,8 @@
     "react/": "https://aistudiocdn.com/react@^19.2.1/",
     "react": "https://aistudiocdn.com/react@^19.2.1",
     "excalibur": "https://aistudiocdn.com/excalibur@^0.31.0",
-    "peerjs": "https://esm.sh/peerjs@1.5.2?bundle-deps"
+    "peerjs": "https://esm.sh/peerjs@1.5.2?bundle-deps",
+    "driver.js": "https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"
   }
 }
 </script>
@@ -215,7 +219,32 @@
       .image-pixelated {
         image-rendering: pixelated;
       }
+
+      /* Driver.js Customization for Retro Theme */
+      .driver-popover {
+        background-color: #1a1a2e !important;
+        color: #fff !important;
+        border: 2px solid #e94560 !important;
+        font-family: sans-serif;
+      }
+      .driver-popover-title {
+        color: #e94560 !important;
+      }
+      .driver-popover-description {
+        color: #4ecdc4 !important;
+      }
+      .driver-popover-btn {
+        background-color: #e94560 !important;
+        color: #fff !important;
+        text-shadow: none !important;
+        border: none !important;
+      }
+      .driver-popover-btn:hover {
+        background-color: #ff6b81 !important;
+      }
     </style>
+    <!-- Load Driver.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js"></script>
 </head>
   <body class="bg-[#1a1a2e] text-white overflow-hidden">
     <div id="root"></div>
