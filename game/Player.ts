@@ -24,7 +24,8 @@ export class Player extends Actor {
 
     // AI Properties
     private aiDecisionTimer: number = 0;
-    private aiReactionDelay: number = 400; // ms between actions
+    private aiReactionDelay: number = 300; 
+    private aiDifficulty: number = 0.7; // 0 to 1 scale
 
     constructor(x: number, y: number, isPlayer1: boolean) {
         super({
@@ -124,31 +125,56 @@ export class Player extends Actor {
     }
 
     private handleAIInput(delta: number) {
-        if (this.animLocked || this.state === 'held' || this.state === 'falling' || this.state === 'down' || this.state === 'win' || !this.opponent) return;
+        if (this.state === 'held' || this.state === 'falling' || this.state === 'down' || this.state === 'win' || !this.opponent) return;
 
         const dist = Math.abs(this.pos.x - this.opponent.pos.x);
+        const opponentIsAttacking = this.opponent.state.includes('punch') || this.opponent.state === 'grab';
+        
         this.aiDecisionTimer += delta;
 
-        // Movement Logic
-        if (dist > HIT_RANGE - 10) {
-            const dir = this.pos.x < this.opponent.pos.x ? 1 : -1;
-            this.vx += dir * MOVE_SPEED;
+        // --- DEFENSIVE LOGIC (Anti-Spam) ---
+        // If player is attacking and CPU is close, CPU should try to dodge (move away)
+        if (opponentIsAttacking && dist < HIT_RANGE + 20 && !this.animLocked) {
+            if (Math.random() < this.aiDifficulty) {
+                const dirAway = this.pos.x < this.opponent.pos.x ? -1 : 1;
+                this.vx += dirAway * (MOVE_SPEED * 1.5); // Fast retreat
+                return; // Prioritize safety over attacking
+            }
         }
 
-        // Combat Logic
-        if (this.aiDecisionTimer > this.aiReactionDelay) {
+        // --- MOVEMENT LOGIC ---
+        if (!this.animLocked) {
+            // Baiting range: AI tries to stay at the edge of the hit range
+            const idealDist = HIT_RANGE - 5;
+            if (dist > idealDist + 10) {
+                const dir = this.pos.x < this.opponent.pos.x ? 1 : -1;
+                this.vx += dir * MOVE_SPEED;
+            } else if (dist < idealDist - 10) {
+                const dir = this.pos.x < this.opponent.pos.x ? -0.5 : 0.5;
+                this.vx += dir * MOVE_SPEED;
+            }
+        }
+
+        // --- ATTACK LOGIC ---
+        if (this.aiDecisionTimer > this.aiReactionDelay && !this.animLocked) {
             this.aiDecisionTimer = 0;
-            if (dist <= HIT_RANGE + 10) {
+
+            // Punish Whiffs: If player just finished an attack, high chance to strike
+            const opponentRecovering = this.opponent.state === 'ready' && !this.opponent.animLocked;
+            
+            if (dist <= HIT_RANGE + 5) {
                 const rand = Math.random();
-                if (rand < 0.4) {
+                // Difficulty affects aggressive choice
+                if (rand < 0.45) {
                     this.setState('high_punch');
-                } else if (rand < 0.8) {
+                } else if (rand < 0.85) {
                     this.setState('low_punch');
                 } else {
                     this.setState('grab');
                 }
-                // Randomize next reaction time
-                this.aiReactionDelay = 300 + Math.random() * 500;
+                
+                // Vary reaction time so it's not robotic
+                this.aiReactionDelay = 200 + Math.random() * 400;
             }
         }
     }
@@ -257,7 +283,6 @@ export class Player extends Actor {
 
         if (!isMultiplayer) {
             if (this.isPlayer1) {
-                // If it's a CPU game, Player 1 can use BOTH sets of keys
                 if (isCPUGame) {
                     left = k.isHeld(Keys.A) || k.isHeld(Keys.Left);
                     right = k.isHeld(Keys.D) || k.isHeld(Keys.Right);
