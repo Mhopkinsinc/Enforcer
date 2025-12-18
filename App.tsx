@@ -12,6 +12,7 @@ import { SMALLFONT_SHEET_B64 } from './game/sprites/smallfontsheet';
 declare const driver: any;
 
 const ALPHABET = " !\"#©%&'()✓+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~■";
+const SETTINGS_STORAGE_KEY = 'hockey_fight_settings';
 
 const PixelText: React.FC<{ text: string; scale?: number }> = ({ text, scale = 3 }) => {
   return (
@@ -41,37 +42,59 @@ const PixelText: React.FC<{ text: string; scale?: number }> = ({ text, scale = 3
   );
 };
 
+const DEFAULT_GAME_STATE: GameState = {
+  p1Health: 5,
+  p2Health: 5,
+  p1State: 'READY',
+  p2State: 'READY',
+  gameOver: false,
+  showGameOver: false,
+  winner: null,
+  isReplaying: false,
+  replayProgress: 0,
+  replaySpeed: 1,
+  isMultiplayer: false,
+  isCPUGame: false,
+  connectionStatus: 'disconnected',
+  opponentDisconnected: false,
+  sfxVolume: 0.15,
+  crtScanlines: true,
+  crtFlicker: true,
+  crtVignette: true,
+  gamepadConfig: {
+      p1Index: null,
+      p2Index: null,
+      p1Mapping: { highPunch: 3, lowPunch: 0, grab: 2 },
+      p2Mapping: { highPunch: 3, lowPunch: 0, grab: 2 }
+  }
+};
+
 const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<HockeyGame | null>(null);
   const networkRef = useRef<NetworkManager | null>(null);
   const musicRef = useRef<HTMLAudioElement | null>(null);
 
-  const [gameState, setGameState] = useState<GameState>({
-    p1Health: 5,
-    p2Health: 5,
-    p1State: 'READY',
-    p2State: 'READY',
-    gameOver: false,
-    showGameOver: false,
-    winner: null,
-    isReplaying: false,
-    replayProgress: 0,
-    replaySpeed: 1,
-    isMultiplayer: false,
-    isCPUGame: false,
-    connectionStatus: 'disconnected',
-    opponentDisconnected: false,
-    sfxVolume: 0.15,
-    crtScanlines: true,
-    crtFlicker: true,
-    crtVignette: true,
-    gamepadConfig: {
-        p1Index: null,
-        p2Index: null,
-        p1Mapping: { highPunch: 3, lowPunch: 0, grab: 2 },
-        p2Mapping: { highPunch: 3, lowPunch: 0, grab: 2 }
+  // Initialize State from LocalStorage if available
+  const [gameState, setGameState] = useState<GameState>(() => {
+    try {
+      const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Merge saved settings with default state structure
+        return {
+          ...DEFAULT_GAME_STATE,
+          sfxVolume: parsed.sfxVolume ?? DEFAULT_GAME_STATE.sfxVolume,
+          crtScanlines: parsed.crtScanlines ?? DEFAULT_GAME_STATE.crtScanlines,
+          crtFlicker: parsed.crtFlicker ?? DEFAULT_GAME_STATE.crtFlicker,
+          crtVignette: parsed.crtVignette ?? DEFAULT_GAME_STATE.crtVignette,
+          gamepadConfig: parsed.gamepadConfig ?? DEFAULT_GAME_STATE.gamepadConfig
+        };
+      }
+    } catch (e) {
+      console.error("Failed to load settings:", e);
     }
+    return DEFAULT_GAME_STATE;
   });
 
   const [menuState, setMenuState] = useState<'main' | 'host' | 'join' | 'game' | 'settings'>('main');
@@ -80,6 +103,18 @@ const App: React.FC = () => {
   const [settingsTab, setSettingsTab] = useState<'audio_video' | 'controls'>('audio_video');
   const [availableGamepads, setAvailableGamepads] = useState<(Gamepad | null)[]>([]);
   const [remapping, setRemapping] = useState<{ player: 1 | 2, action: 'highPunch' | 'lowPunch' | 'grab' } | null>(null);
+
+  // Save settings to LocalStorage whenever they change
+  useEffect(() => {
+    const settingsToSave = {
+      sfxVolume: gameState.sfxVolume,
+      crtScanlines: gameState.crtScanlines,
+      crtFlicker: gameState.crtFlicker,
+      crtVignette: gameState.crtVignette,
+      gamepadConfig: gameState.gamepadConfig
+    };
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settingsToSave));
+  }, [gameState.sfxVolume, gameState.crtScanlines, gameState.crtFlicker, gameState.crtVignette, gameState.gamepadConfig]);
 
   // Initialize Engine
   useEffect(() => {
@@ -96,9 +131,22 @@ const App: React.FC = () => {
       antialiasing: false
     });
 
+    // Apply saved settings to engine immediately
+    game.setSFXVolume(gameState.sfxVolume);
+    game.updateGamepadSettings(gameState.gamepadConfig);
+
     game.start().then(() => {
         game.setupGame((state) => {
-            setGameState(prev => ({ ...prev, ...state }));
+            setGameState(prev => ({ 
+              ...prev, 
+              ...state,
+              // Ensure we don't overwrite our local settings with game defaults if the game sends them back
+              sfxVolume: prev.sfxVolume, 
+              crtScanlines: prev.crtScanlines,
+              crtFlicker: prev.crtFlicker,
+              crtVignette: prev.crtVignette,
+              gamepadConfig: prev.gamepadConfig
+            }));
         });
     });
 
