@@ -471,19 +471,19 @@ const App: React.FC = () => {
                                                             onClick={() => setRemapping({player: 1, action: 'highPunch'})}
                                                             className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 1 && remapping?.action === 'highPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
                                                         >
-                                                            HI: {gameState.gamepadConfig.p1Mapping.highPunch}
+                                                            HI Punch: {gameState.gamepadConfig.p1Mapping.highPunch}
                                                         </button>
                                                         <button 
                                                             onClick={() => setRemapping({player: 1, action: 'lowPunch'})}
                                                             className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 1 && remapping?.action === 'lowPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
                                                         >
-                                                            LO: {gameState.gamepadConfig.p1Mapping.lowPunch}
+                                                            LO Punch: {gameState.gamepadConfig.p1Mapping.lowPunch}
                                                         </button>
                                                         <button 
                                                             onClick={() => setRemapping({player: 1, action: 'grab'})}
                                                             className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 1 && remapping?.action === 'grab' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
                                                         >
-                                                            GR: {gameState.gamepadConfig.p1Mapping.grab}
+                                                            Hold: {gameState.gamepadConfig.p1Mapping.grab}
                                                         </button>
                                                     </div>
                                                 )}
