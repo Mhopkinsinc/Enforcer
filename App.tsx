@@ -205,10 +205,6 @@ const App: React.FC = () => {
         imageRendering: 'pixelated'
       }}
     >
-      <h1 className="text-4xl mb-8 text-[#e94560] drop-shadow-md font-bold" style={{textShadow: "0 0 10px rgba(233,69,96,0.5)"}}>
-        HOCKEY FIGHT 🥊
-      </h1>
-
       {/* TV CASE */}
       <div className="tv-case">
         
@@ -278,11 +274,11 @@ const App: React.FC = () => {
                         )}
 
                         {menuState === 'settings' && (
-                            <div className="flex flex-col items-center gap-6 p-8 bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px]">
-                                <h2 className="text-3xl text-[#e94560] font-bold tracking-wider">SETTINGS</h2>
+                            <div className="flex flex-col items-center gap-4 py-4 px-8 bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px] max-h-[90%] overflow-y-auto custom-scrollbar">
+                                <h2 className="text-2xl text-[#e94560] font-bold tracking-wider">SETTINGS</h2>
                                 
                                 <div className="w-full">
-                                    <label className="flex justify-between text-[#4ecdc4] mb-3 font-bold text-lg">
+                                    <label className="flex justify-between text-[#4ecdc4] mb-2 font-bold text-base">
                                         <span>SFX VOLUME</span>
                                         <span>{Math.round(gameState.sfxVolume * 100)}%</span>
                                     </label>
@@ -297,55 +293,55 @@ const App: React.FC = () => {
                                     />
                                 </div>
 
-                                <div className="w-full flex flex-col gap-3">
-                                    <div className="text-[#4ecdc4] font-bold text-lg mb-1">VISUALS</div>
+                                <div className="w-full flex flex-col gap-2">
+                                    <div className="text-[#4ecdc4] font-bold text-base mb-0">VISUALS</div>
                                     <label className="flex items-center justify-between cursor-pointer group">
-                                        <span className="text-gray-300 group-hover:text-white transition-colors">Scanlines</span>
+                                        <span className="text-gray-300 text-sm group-hover:text-white transition-colors">Scanlines</span>
                                         <input 
                                             type="checkbox" 
                                             checked={gameState.crtScanlines} 
                                             onChange={() => toggleSetting('crtScanlines')}
-                                            className="w-5 h-5 accent-[#e94560]"
+                                            className="w-4 h-4 accent-[#e94560]"
                                         />
                                     </label>
                                     <label className="flex items-center justify-between cursor-pointer group">
-                                        <span className="text-gray-300 group-hover:text-white transition-colors">Vignette</span>
+                                        <span className="text-gray-300 text-sm group-hover:text-white transition-colors">Vignette</span>
                                         <input 
                                             type="checkbox" 
                                             checked={gameState.crtVignette} 
                                             onChange={() => toggleSetting('crtVignette')}
-                                            className="w-5 h-5 accent-[#e94560]"
+                                            className="w-4 h-4 accent-[#e94560]"
                                         />
                                     </label>
                                     <label className="flex items-center justify-between cursor-pointer group">
-                                        <span className="text-gray-300 group-hover:text-white transition-colors">Flicker</span>
+                                        <span className="text-gray-300 text-sm group-hover:text-white transition-colors">Flicker</span>
                                         <input 
                                             type="checkbox" 
                                             checked={gameState.crtFlicker} 
                                             onChange={() => toggleSetting('crtFlicker')}
-                                            className="w-5 h-5 accent-[#e94560]"
+                                            className="w-4 h-4 accent-[#e94560]"
                                         />
                                     </label>
                                 </div>
 
-                                <div className="flex flex-col gap-2 w-full mt-2">
-                                    <div className="flex gap-4">
+                                <div className="flex flex-col gap-2 w-full mt-1">
+                                    <div className="flex gap-2">
                                       <button 
                                           onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} 
-                                          className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold transition-colors"
+                                          className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1.5 rounded font-bold text-sm transition-colors"
                                       >
-                                          🔊 TEST SFX
+                                          SFX TEST
                                       </button>
                                       <button 
                                           onClick={playBase64Mp3} 
-                                          className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-bold transition-colors"
+                                          className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1.5 rounded font-bold text-sm transition-colors"
                                       >
-                                          🎵 PLAY SONG
+                                          SONG
                                       </button>
                                     </div>
                                     <button 
                                         onClick={() => setMenuState('main')} 
-                                        className="w-full bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-2 rounded font-bold transition-colors"
+                                        className="w-full bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-2 rounded font-bold text-base transition-colors"
                                     >
                                         DONE
                                     </button>
