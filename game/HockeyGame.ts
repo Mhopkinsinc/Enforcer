@@ -1,6 +1,5 @@
-
 import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite, Sound, SpriteFont, Text, ScreenElement } from "excalibur";
-import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE } from "../constants";
+import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE, FINISHER_KNOCKBACK_FORCE } from "../constants";
 import { Player } from "./Player";
 import { Gloves } from "./Gloves";
 import { Net } from "./Net";
@@ -163,9 +162,11 @@ export class HockeyGame extends Engine {
 
                 if (!victim || !attacker) return;
 
+                const isFinisher = victim.health - 1 <= 0;
                 victim.takeDamage(damageType);
                 const dir = (attacker as any).pos.x < (victim as any).pos.x ? 1 : -1;
-                victim.vx += dir * KNOCKBACK_FORCE;
+                const force = isFinisher ? FINISHER_KNOCKBACK_FORCE : KNOCKBACK_FORCE;
+                victim.vx += dir * force;
 
                 this.shake(200, 5);
                 this.playHitSound(damageType);

@@ -1,6 +1,5 @@
-
 import { Actor, Engine, SpriteSheet, Animation, AnimationStrategy, Keys, vec, Vector, Color, GraphicsGroup, Frame } from "excalibur";
-import { SCALE, SPRITE_WIDTH, SPRITE_HEIGHT, ANIMATIONS, MOVE_SPEED, FRICTION, HIT_RANGE, HITBOX_WIDTH, FRAMES, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE, STAR_WIDTH, STAR_HEIGHT, STANLEY_WIDTH, STANLEY_HEIGHT } from "../constants";
+import { SCALE, SPRITE_WIDTH, SPRITE_HEIGHT, ANIMATIONS, MOVE_SPEED, FRICTION, HIT_RANGE, HITBOX_WIDTH, FRAMES, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE, FINISHER_KNOCKBACK_FORCE, BOUNCE_FACTOR, STAR_WIDTH, STAR_HEIGHT, STANLEY_WIDTH, STANLEY_HEIGHT } from "../constants";
 import { AnimationState, PlayerSnapshot, SyncPayload } from "../types";
 import { HockeyGame } from "./HockeyGame";
 import { BloodParticle } from "./BloodParticle";
@@ -297,8 +296,21 @@ export class Player extends Actor {
         this.vx *= FRICTION;
 
         const margin = 100;
-        if ((this as any).transform.pos.x < margin) (this as any).transform.pos.x = margin;
-        if ((this as any).transform.pos.x > 800 - margin) (this as any).transform.pos.x = 800 - margin;
+        const leftLimit = margin;
+        const rightLimit = 800 - margin;
+
+        if ((this as any).transform.pos.x < leftLimit) {
+            (this as any).transform.pos.x = leftLimit;
+            if (this.vx < 0) {
+                this.vx = -this.vx * BOUNCE_FACTOR;
+            }
+        }
+        if ((this as any).transform.pos.x > rightLimit) {
+            (this as any).transform.pos.x = rightLimit;
+            if (this.vx > 0) {
+                this.vx = -this.vx * BOUNCE_FACTOR;
+            }
+        }
     }
 
     private checkCollisions() {
@@ -369,7 +381,8 @@ export class Player extends Actor {
                     this.opponent.takeDamage(hitType);
                     
                     const dir = (this as any).transform.pos.x < (this.opponent as any).transform.pos.x ? 1 : -1;
-                    this.opponent.vx += dir * KNOCKBACK_FORCE;
+                    const force = isFinisher ? FINISHER_KNOCKBACK_FORCE : KNOCKBACK_FORCE;
+                    this.opponent.vx += dir * force;
 
                     if ((this as any).scene && (this as any).scene.engine) {
                         game.shake(200, 5); 

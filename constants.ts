@@ -1,4 +1,3 @@
-
 import { ImageSource, Sound } from "excalibur";
 import { AnimationState } from "./types";
 import { SPRITE_SHEET_B64 } from "./game/sprites/playerspritesheet";
@@ -47,6 +46,8 @@ export const HITBOX_HEIGHT = 80;
 export const MOVE_SPEED = 0.8;
 export const FRICTION = 0.9;
 export const KNOCKBACK_FORCE = 8;
+export const FINISHER_KNOCKBACK_FORCE = 20;
+export const BOUNCE_FACTOR = 0.6;
 
 export const FRAMES = {
     THROW_GLOVES: [0, 1, 2, 3],
