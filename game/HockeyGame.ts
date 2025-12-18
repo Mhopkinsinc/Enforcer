@@ -1,3 +1,4 @@
+
 import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite, Sound, SpriteFont, Text, ScreenElement } from "excalibur";
 import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE, FINISHER_KNOCKBACK_FORCE } from "../constants";
 import { Player } from "./Player";
@@ -23,6 +24,7 @@ export interface GameResources {
     FramerSheet: ImageSource;
     RinkSheet: ImageSource;
     SmallFontSheet: ImageSource;
+    FullRinkBkg: ImageSource;
 }
 
 export class HockeyGame extends Engine {
@@ -105,7 +107,8 @@ export class HockeyGame extends Engine {
             this.resources.PunchLowSound,
             this.resources.FramerSheet,
             this.resources.RinkSheet,
-            this.resources.SmallFontSheet
+            this.resources.SmallFontSheet,
+            this.resources.FullRinkBkg
         ]);
         loader.suppressPlayButton = true;
         

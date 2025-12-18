@@ -1,5 +1,6 @@
 
 import { THEME_SONG_B64 } from './game/sfx/music';
+import { FULLRINK_SHEET_B64 } from './game/sprites/fullrinkbkg';
 import React, { useEffect, useRef, useState } from 'react';
 import { Engine, DisplayMode, Color } from 'excalibur';
 import { HockeyGame } from './game/HockeyGame';
@@ -194,7 +195,16 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen font-sans">
+    <div 
+      className="flex flex-col items-center justify-center min-h-screen font-sans"
+      style={{
+        backgroundImage: `url(${FULLRINK_SHEET_B64})`,
+        backgroundSize: 'cover',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+        imageRendering: 'pixelated'
+      }}
+    >
       <h1 className="text-4xl mb-8 text-[#e94560] drop-shadow-md font-bold" style={{textShadow: "0 0 10px rgba(233,69,96,0.5)"}}>
         HOCKEY FIGHT 🥊
       </h1>
