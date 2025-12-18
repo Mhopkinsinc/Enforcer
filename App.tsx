@@ -1,4 +1,3 @@
-
 import { THEME_SONG_B64 } from './game/sfx/music';
 import { FULLRINK_SHEET_B64 } from './game/sprites/fullrinkbkg';
 import React, { useEffect, useRef, useState } from 'react';
@@ -279,7 +278,7 @@ const App: React.FC = () => {
                         )}
 
                         {menuState === 'settings' && (
-                            <div className="flex flex-col bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px] max-h-[370px] overflow-hidden">
+                            <div className="flex flex-col bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px] max-h-[370px] overflow-hidden z-50">
                                 <div className="overflow-y-auto px-6 py-3 flex flex-col items-center gap-2">
                                     <h2 className="text-2xl text-[#e94560] font-bold tracking-wider mb-1">SETTINGS</h2>
                                     
@@ -355,6 +354,33 @@ const App: React.FC = () => {
                                 </div>
                             </div>
                         )}
+
+                        {/* IN-GAME INSTRUCTION OVERLAY BOXES */}
+                        <div className="absolute bottom-6 left-6 right-6 flex gap-6 z-30">
+                            {/* P1 Controls Box */}
+                            <div className="flex-1 bg-[#1a1a2e] border border-[#2a2a4e] p-3 rounded-xl shadow-2xl flex gap-3 items-start">
+                                <div className="w-6 h-6 rounded-full bg-[#4ecdc4]/20 flex items-center justify-center text-[#4ecdc4] font-bold text-xs border border-[#4ecdc4]/40">i</div>
+                                <div className="flex flex-col">
+                                    <span className="text-[#4ecdc4] font-bold text-[10px] uppercase tracking-widest mb-1">Player 1 Controls</span>
+                                    <ul className="text-gray-300 text-[11px] space-y-0.5 leading-tight">
+                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> WASD to Move</li>
+                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> J / K / L Action</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            {/* P2 Controls Box */}
+                            <div className="flex-1 bg-[#1a1a2e] border border-[#2a2a4e] p-3 rounded-xl shadow-2xl flex gap-3 items-start">
+                                <div className="w-6 h-6 rounded-full bg-[#e94560]/20 flex items-center justify-center text-[#e94560] font-bold text-xs border border-[#e94560]/40">i</div>
+                                <div className="flex flex-col">
+                                    <span className="text-[#e94560] font-bold text-[10px] uppercase tracking-widest mb-1">Player 2 Controls</span>
+                                    <ul className="text-gray-300 text-[11px] space-y-0.5 leading-tight">
+                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> Arrows to Move</li>
+                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> 1 / 2 / 3 Action</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
                 
@@ -449,20 +475,6 @@ const App: React.FC = () => {
                 <div className="power-btn"></div>
             </div>
         </div>
-      </div>
-
-      <div className="flex justify-center w-[800px] mt-8 relative z-20">
-        {/* Controls Hint - Centered */}
-        {gameState.isMultiplayer ? (
-            <div className="text-center text-sm text-gray-400">
-                 <span className="block font-bold text-[#e94560]">YOU ARE {gameState.isHost ? "PLAYER 1" : "PLAYER 2"}</span>
-                 <span>WASD / ARROWS to Move • J / 1 High • K / 2 Low • L / 3 Grab</span>
-            </div>
-        ) : (
-            <div className="text-center text-sm text-gray-400">
-                 P1: WASD+J/K/L &nbsp;|&nbsp; P2: ARROWS+1/2/3
-            </div>
-        )}
       </div>
     </div>
   );
