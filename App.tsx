@@ -274,12 +274,12 @@ const App: React.FC = () => {
                         )}
 
                         {menuState === 'settings' && (
-                            <div className="flex flex-col bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px] max-h-[350px] overflow-hidden">
-                                <div className="overflow-y-auto p-6 flex flex-col items-center gap-4">
-                                    <h2 className="text-2xl text-[#e94560] font-bold tracking-wider">SETTINGS</h2>
+                            <div className="flex flex-col bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[320px] max-h-[370px] overflow-hidden">
+                                <div className="overflow-y-auto px-6 py-3 flex flex-col items-center gap-2">
+                                    <h2 className="text-2xl text-[#e94560] font-bold tracking-wider mb-1">SETTINGS</h2>
                                     
                                     <div className="w-full">
-                                        <label className="flex justify-between text-[#4ecdc4] mb-2 font-bold text-base">
+                                        <label className="flex justify-between text-[#4ecdc4] mb-1 font-bold text-sm">
                                             <span>SFX VOLUME</span>
                                             <span>{Math.round(gameState.sfxVolume * 100)}%</span>
                                         </label>
@@ -290,59 +290,59 @@ const App: React.FC = () => {
                                             step="0.05"
                                             value={gameState.sfxVolume}
                                             onChange={handleVolumeChange}
-                                            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560] hover:accent-[#ff6b81]"
+                                            className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560] hover:accent-[#ff6b81]"
                                         />
                                     </div>
 
-                                    <div className="w-full flex flex-col gap-2">
-                                        <div className="text-[#4ecdc4] font-bold text-base mb-0">VISUALS</div>
+                                    <div className="w-full flex flex-col gap-1.5">
+                                        <div className="text-[#4ecdc4] font-bold text-sm mt-1">VISUALS</div>
                                         <label className="flex items-center justify-between cursor-pointer group">
-                                            <span className="text-gray-300 text-sm group-hover:text-white transition-colors">Scanlines</span>
+                                            <span className="text-gray-300 text-xs group-hover:text-white transition-colors">Scanlines</span>
                                             <input 
                                                 type="checkbox" 
                                                 checked={gameState.crtScanlines} 
                                                 onChange={() => toggleSetting('crtScanlines')}
-                                                className="w-4 h-4 accent-[#e94560]"
+                                                className="w-3.5 h-3.5 accent-[#e94560]"
                                             />
                                         </label>
                                         <label className="flex items-center justify-between cursor-pointer group">
-                                            <span className="text-gray-300 text-sm group-hover:text-white transition-colors">Vignette</span>
+                                            <span className="text-gray-300 text-xs group-hover:text-white transition-colors">Vignette</span>
                                             <input 
                                                 type="checkbox" 
                                                 checked={gameState.crtVignette} 
                                                 onChange={() => toggleSetting('crtVignette')}
-                                                className="w-4 h-4 accent-[#e94560]"
+                                                className="w-3.5 h-3.5 accent-[#e94560]"
                                             />
                                         </label>
                                         <label className="flex items-center justify-between cursor-pointer group">
-                                            <span className="text-gray-300 text-sm group-hover:text-white transition-colors">Flicker</span>
+                                            <span className="text-gray-300 text-xs group-hover:text-white transition-colors">Flicker</span>
                                             <input 
                                                 type="checkbox" 
                                                 checked={gameState.crtFlicker} 
                                                 onChange={() => toggleSetting('crtFlicker')}
-                                                className="w-4 h-4 accent-[#e94560]"
+                                                className="w-3.5 h-3.5 accent-[#e94560]"
                                             />
                                         </label>
                                     </div>
 
-                                    <div className="flex flex-col gap-2 w-full mt-1">
+                                    <div className="flex flex-col gap-2 w-full mt-2">
                                         <div className="flex gap-2">
                                           <button 
                                               onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} 
-                                              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1.5 rounded font-bold text-sm transition-colors"
+                                              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-xs transition-colors"
                                           >
                                               SFX TEST
                                           </button>
                                           <button 
                                               onClick={playBase64Mp3} 
-                                              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1.5 rounded font-bold text-sm transition-colors"
+                                              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-xs transition-colors"
                                           >
                                               SONG
                                           </button>
                                         </div>
                                         <button 
                                             onClick={() => setMenuState('main')} 
-                                            className="w-full bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-2 rounded font-bold text-base transition-colors"
+                                            className="w-full bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-1.5 rounded font-bold text-sm transition-colors"
                                         >
                                             DONE
                                         </button>
