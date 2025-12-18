@@ -24,8 +24,9 @@ export class Player extends Actor {
 
     // AI Properties
     private aiDecisionTimer: number = 0;
-    private aiReactionDelay: number = 300; 
-    private aiDifficulty: number = 0.7; // 0 to 1 scale
+    private aiReactionDelay: number = 200; // Faster base reaction
+    private aiDifficulty: number = 0.9; // Increased difficulty
+    private aiComboing: boolean = false;
 
     constructor(x: number, y: number, isPlayer1: boolean) {
         super({
@@ -129,52 +130,58 @@ export class Player extends Actor {
 
         const dist = Math.abs(this.pos.x - this.opponent.pos.x);
         const opponentIsAttacking = this.opponent.state.includes('punch') || this.opponent.state === 'grab';
+        const opponentIsStunned = this.opponent.state.includes('hit') || this.opponent.state === 'held';
         
         this.aiDecisionTimer += delta;
 
-        // --- DEFENSIVE LOGIC (Anti-Spam) ---
-        // If player is attacking and CPU is close, CPU should try to dodge (move away)
-        if (opponentIsAttacking && dist < HIT_RANGE + 20 && !this.animLocked) {
+        // --- ENHANCED DEFENSE (Prevent Spam) ---
+        // If player is punching, CPU retreats aggressively
+        if (opponentIsAttacking && dist < HIT_RANGE + 30 && !this.animLocked) {
             if (Math.random() < this.aiDifficulty) {
                 const dirAway = this.pos.x < this.opponent.pos.x ? -1 : 1;
-                this.vx += dirAway * (MOVE_SPEED * 1.5); // Fast retreat
-                return; // Prioritize safety over attacking
+                this.vx += dirAway * (MOVE_SPEED * 2.5); // Very fast retreat to break combos
+                return;
             }
         }
 
-        // --- MOVEMENT LOGIC ---
+        // --- COMBO LOGIC ---
+        // If CPU is ready and player is stunned, CPU goes for immediate follow-up
+        if (opponentIsStunned && dist < HIT_RANGE + 10 && !this.animLocked && !this.aiComboing) {
+            this.aiComboing = true;
+            this.aiDecisionTimer = this.aiReactionDelay + 1; // Force action
+        }
+
+        // --- POSITIONING ---
         if (!this.animLocked) {
-            // Baiting range: AI tries to stay at the edge of the hit range
-            const idealDist = HIT_RANGE - 5;
-            if (dist > idealDist + 10) {
-                const dir = this.pos.x < this.opponent.pos.x ? 1 : -1;
-                this.vx += dir * MOVE_SPEED;
-            } else if (dist < idealDist - 10) {
-                const dir = this.pos.x < this.opponent.pos.x ? -0.5 : 0.5;
-                this.vx += dir * MOVE_SPEED;
+            // High level AI dances around the range to bait whiffs
+            const idealDist = opponentIsStunned ? 20 : HIT_RANGE - 10;
+            const dir = this.pos.x < this.opponent.pos.x ? 1 : -1;
+            
+            if (dist > idealDist + 5) {
+                this.vx += dir * (MOVE_SPEED * 1.2);
+            } else if (dist < idealDist - 5) {
+                this.vx += -dir * (MOVE_SPEED * 1.2);
             }
         }
 
-        // --- ATTACK LOGIC ---
+        // --- ATTACK DECISION ---
         if (this.aiDecisionTimer > this.aiReactionDelay && !this.animLocked) {
             this.aiDecisionTimer = 0;
+            this.aiComboing = false;
 
-            // Punish Whiffs: If player just finished an attack, high chance to strike
-            const opponentRecovering = this.opponent.state === 'ready' && !this.opponent.animLocked;
-            
-            if (dist <= HIT_RANGE + 5) {
+            if (dist <= HIT_RANGE + 10) {
                 const rand = Math.random();
-                // Difficulty affects aggressive choice
-                if (rand < 0.45) {
+                // Favor High Punches for damage
+                if (rand < 0.5) {
                     this.setState('high_punch');
-                } else if (rand < 0.85) {
+                } else if (rand < 0.8) {
                     this.setState('low_punch');
                 } else {
                     this.setState('grab');
                 }
                 
-                // Vary reaction time so it's not robotic
-                this.aiReactionDelay = 200 + Math.random() * 400;
+                // Reaction speed based on difficulty
+                this.aiReactionDelay = 100 + (Math.random() * (1.0 - this.aiDifficulty) * 1000);
             }
         }
     }
@@ -432,6 +439,11 @@ export class Player extends Actor {
             this.setState('falling');
         } else {
             this.setState(type === 'high' ? 'hit_high' : 'hit_low');
+            // BREAKAWAY LOGIC: If CPU is hit, boost velocity away to prevent stun lock
+            if (this.isCPU) {
+                const dirAway = (this.opponent && this.pos.x < this.opponent.pos.x) ? -1 : 1;
+                this.vx += dirAway * (MOVE_SPEED * 5); 
+            }
         }
     }
 
