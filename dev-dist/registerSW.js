@@ -1,1 +1,0 @@
-if('serviceWorker' in navigator) navigator.serviceWorker.register('/Enforcer/dev-sw.js?dev-sw', { scope: '/Enforcer/', type: 'classic' })
