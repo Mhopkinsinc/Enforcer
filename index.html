@@ -3,8 +3,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#1a1a2e" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Hockey Fight</title>
+    <link rel="manifest" href="./manifest.json" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="./global-font.css" />
     <!-- Driver.js Styles -->
@@ -27,6 +31,7 @@
       body {
         background-color: #121212;
         background-image: radial-gradient(circle at center, #1e1e2f 0%, #000 100%);
+        touch-action: none; /* Prevent pull-to-refresh on mobile */
       }
 
       /* Arena Frosted Glass Overlay */
