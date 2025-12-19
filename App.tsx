@@ -407,7 +407,7 @@ const App: React.FC = () => {
                                     </button>
                                 </div>
                                 <button id="tour-settings-btn" onClick={() => setMenuState('settings')} className={`text-gray-400 hover:text-white mt-2 font-bold tracking-widest text-sm border-b transition-all ${menuState === 'settings' ? 'border-white text-white' : 'border-transparent'}`}>
-                                    {menuState === 'settings' ? 'CLOSE SETTINGS' : '⚙️ SETTINGS'}
+                                    {menuState === 'settings' ? '' : '⚙️ SETTINGS'}
                                 </button>
                             </div>
                         )}
