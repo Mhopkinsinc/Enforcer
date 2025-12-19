@@ -50,6 +50,22 @@ export class HockeyGame extends Engine {
     public networkManager: NetworkManager | null = null;
     private isHost: boolean = false;
     public opponentDisconnected: boolean = false;
+
+    // Virtual Input for Mobile
+    public virtualInput = {
+        left: false,
+        right: false,
+        high: false,
+        low: false,
+        grab: false
+    };
+    
+    // Helper to handle "wasPressed" logic for virtual buttons
+    public virtualInputPrev = {
+        high: false,
+        low: false,
+        grab: false
+    };
     
     // Settings
     public sfxVolume: number = 0.15;
@@ -331,6 +347,12 @@ export class HockeyGame extends Engine {
 
     public seekTo(percent: number) {
         this.replayManager.seekTo(percent);
+    }
+
+    onPostUpdate(engine: Engine, delta: number) {
+        this.virtualInputPrev.high = this.virtualInput.high;
+        this.virtualInputPrev.low = this.virtualInput.low;
+        this.virtualInputPrev.grab = this.virtualInput.grab;
     }
 
     private checkGameOver() {

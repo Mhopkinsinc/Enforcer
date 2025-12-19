@@ -292,11 +292,16 @@ export class Player extends Actor {
         if (!isMultiplayer) {
             if (this.isPlayer1) {
                 if (isCPUGame) {
-                    left = k.isHeld(Keys.A) || k.isHeld(Keys.Left);
-                    right = k.isHeld(Keys.D) || k.isHeld(Keys.Right);
-                    high = k.wasPressed(Keys.J) || k.wasPressed(Keys.Num1) || k.wasPressed(Keys.Numpad1);
-                    low = k.wasPressed(Keys.K) || k.wasPressed(Keys.Num2) || k.wasPressed(Keys.Numpad2);
-                    grab = k.wasPressed(Keys.L) || k.wasPressed(Keys.Num3) || k.wasPressed(Keys.Numpad3);
+                    left = k.isHeld(Keys.A) || k.isHeld(Keys.Left) || game.virtualInput.left;
+                    right = k.isHeld(Keys.D) || k.isHeld(Keys.Right) || game.virtualInput.right;
+
+                    const vHigh = game.virtualInput.high && !game.virtualInputPrev.high;
+                    const vLow = game.virtualInput.low && !game.virtualInputPrev.low;
+                    const vGrab = game.virtualInput.grab && !game.virtualInputPrev.grab;
+
+                    high = k.wasPressed(Keys.J) || k.wasPressed(Keys.Num1) || k.wasPressed(Keys.Numpad1) || vHigh;
+                    low = k.wasPressed(Keys.K) || k.wasPressed(Keys.Num2) || k.wasPressed(Keys.Numpad2) || vLow;
+                    grab = k.wasPressed(Keys.L) || k.wasPressed(Keys.Num3) || k.wasPressed(Keys.Numpad3) || vGrab;
                 } else {
                     left = k.isHeld(Keys.A);
                     right = k.isHeld(Keys.D);
@@ -312,11 +317,16 @@ export class Player extends Actor {
                 grab = k.wasPressed(Keys.Num3) || k.wasPressed(Keys.Numpad3);
             }
         } else {
-            if (k.isHeld(Keys.A) || k.isHeld(Keys.Left)) left = true;
-            if (k.isHeld(Keys.D) || k.isHeld(Keys.Right)) right = true;
-            if (k.wasPressed(Keys.J) || k.wasPressed(Keys.Num1) || k.wasPressed(Keys.Numpad1)) high = true;
-            if (k.wasPressed(Keys.K) || k.wasPressed(Keys.Num2) || k.wasPressed(Keys.Numpad2)) low = true;
-            if (k.wasPressed(Keys.L) || k.wasPressed(Keys.Num3) || k.wasPressed(Keys.Numpad3)) grab = true;
+            if (k.isHeld(Keys.A) || k.isHeld(Keys.Left) || game.virtualInput.left) left = true;
+            if (k.isHeld(Keys.D) || k.isHeld(Keys.Right) || game.virtualInput.right) right = true;
+
+            const vHigh = game.virtualInput.high && !game.virtualInputPrev.high;
+            const vLow = game.virtualInput.low && !game.virtualInputPrev.low;
+            const vGrab = game.virtualInput.grab && !game.virtualInputPrev.grab;
+
+            if (k.wasPressed(Keys.J) || k.wasPressed(Keys.Num1) || k.wasPressed(Keys.Numpad1) || vHigh) high = true;
+            if (k.wasPressed(Keys.K) || k.wasPressed(Keys.Num2) || k.wasPressed(Keys.Numpad2) || vLow) low = true;
+            if (k.wasPressed(Keys.L) || k.wasPressed(Keys.Num3) || k.wasPressed(Keys.Numpad3) || vGrab) grab = true;
         }
 
         // --- Gamepad Controls ---

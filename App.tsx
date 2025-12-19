@@ -69,12 +69,114 @@ const DEFAULT_GAME_STATE: GameState = {
   }
 };
 
+const MobileControls: React.FC<{ game: HockeyGame | null }> = ({ game }) => {
+  const [showControls, setShowControls] = useState(false);
+
+  useEffect(() => {
+      const checkTouch = () => {
+          setShowControls('ontouchstart' in window || navigator.maxTouchPoints > 0);
+      };
+      checkTouch();
+      window.addEventListener('resize', checkTouch);
+      return () => window.removeEventListener('resize', checkTouch);
+  }, []);
+
+  if (!showControls || !game) return null;
+
+  const handleTouchStart = (action: string) => (e: React.TouchEvent | React.MouseEvent) => {
+      // e.preventDefault(); 
+      switch (action) {
+          case 'left': game.virtualInput.left = true; break;
+          case 'right': game.virtualInput.right = true; break;
+          case 'high': game.virtualInput.high = true; break;
+          case 'low': game.virtualInput.low = true; break;
+          case 'grab': game.virtualInput.grab = true; break;
+      }
+  };
+
+  const handleTouchEnd = (action: string) => (e: React.TouchEvent | React.MouseEvent) => {
+      // e.preventDefault();
+      switch (action) {
+          case 'left': game.virtualInput.left = false; break;
+          case 'right': game.virtualInput.right = false; break;
+          case 'high': game.virtualInput.high = false; break;
+          case 'low': game.virtualInput.low = false; break;
+          case 'grab': game.virtualInput.grab = false; break;
+      }
+  };
+
+  return (
+      <div className="fixed bottom-4 left-0 right-0 px-8 pb-8 flex justify-between items-end pointer-events-none z-[1000] select-none touch-none">
+          <div className="flex gap-4 pointer-events-auto">
+              <button
+                  className="w-20 h-20 bg-white/10 rounded-full active:bg-white/30 backdrop-blur-md border-2 border-white/20 flex items-center justify-center text-3xl text-white/50"
+                  onTouchStart={handleTouchStart('left')}
+                  onTouchEnd={handleTouchEnd('left')}
+                  onMouseDown={handleTouchStart('left')}
+                  onMouseUp={handleTouchEnd('left')}
+                  onMouseLeave={handleTouchEnd('left')}
+              >
+                  ←
+              </button>
+              <button
+                  className="w-20 h-20 bg-white/10 rounded-full active:bg-white/30 backdrop-blur-md border-2 border-white/20 flex items-center justify-center text-3xl text-white/50"
+                  onTouchStart={handleTouchStart('right')}
+                  onTouchEnd={handleTouchEnd('right')}
+                  onMouseDown={handleTouchStart('right')}
+                  onMouseUp={handleTouchEnd('right')}
+                  onMouseLeave={handleTouchEnd('right')}
+              >
+                  →
+              </button>
+          </div>
+
+          <div className="flex gap-6 pointer-events-auto items-end">
+             <div className="flex flex-col gap-4">
+                  <button
+                      className="w-20 h-20 bg-red-500/30 rounded-full active:bg-red-500/50 backdrop-blur-md border-2 border-white/20 flex items-center justify-center text-xl font-bold text-white/80"
+                      onTouchStart={handleTouchStart('high')}
+                      onTouchEnd={handleTouchEnd('high')}
+                      onMouseDown={handleTouchStart('high')}
+                      onMouseUp={handleTouchEnd('high')}
+                      onMouseLeave={handleTouchEnd('high')}
+                  >
+                      HI
+                  </button>
+                  <button
+                      className="w-20 h-20 bg-blue-500/30 rounded-full active:bg-blue-500/50 backdrop-blur-md border-2 border-white/20 flex items-center justify-center text-xl font-bold text-white/80"
+                      onTouchStart={handleTouchStart('low')}
+                      onTouchEnd={handleTouchEnd('low')}
+                      onMouseDown={handleTouchStart('low')}
+                      onMouseUp={handleTouchEnd('low')}
+                      onMouseLeave={handleTouchEnd('low')}
+                  >
+                      LO
+                  </button>
+             </div>
+             <div className="flex flex-col justify-center mb-12">
+                  <button
+                      className="w-20 h-20 bg-green-500/30 rounded-full active:bg-green-500/50 backdrop-blur-md border-2 border-white/20 flex items-center justify-center text-xl font-bold text-white/80"
+                      onTouchStart={handleTouchStart('grab')}
+                      onTouchEnd={handleTouchEnd('grab')}
+                      onMouseDown={handleTouchStart('grab')}
+                      onMouseUp={handleTouchEnd('grab')}
+                      onMouseLeave={handleTouchEnd('grab')}
+                  >
+                      GR
+                  </button>
+             </div>
+          </div>
+      </div>
+  );
+};
+
 const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<HockeyGame | null>(null);
   const networkRef = useRef<NetworkManager | null>(null);
   const musicRef = useRef<HTMLAudioElement | null>(null);
   const lastInputTime = useRef<number>(0);
+  const [gameInstance, setGameInstance] = useState<HockeyGame | null>(null);
 
   // Initialize State from LocalStorage if available
   const [gameState, setGameState] = useState<GameState>(() => {
@@ -160,6 +262,7 @@ const App: React.FC = () => {
     });
 
     gameRef.current = game;
+    setGameInstance(game);
 
     const handleKeyDown = (e: KeyboardEvent) => {
         if (game.opponentDisconnected) return;
@@ -312,7 +415,7 @@ const App: React.FC = () => {
                     if (settingsIndex === 9) setMenuState('main');
                 }
             }
-        }
+        } 
 
         if (inputFound) {
             lastInputTime.current = now;
@@ -912,6 +1015,7 @@ const App: React.FC = () => {
             </div>
         </div>
       </div>
+      <MobileControls game={gameInstance} />
     </div>
   );
 };
