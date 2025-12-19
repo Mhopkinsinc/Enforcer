@@ -74,6 +74,7 @@ const App: React.FC = () => {
   const gameRef = useRef<HockeyGame | null>(null);
   const networkRef = useRef<NetworkManager | null>(null);
   const musicRef = useRef<HTMLAudioElement | null>(null);
+  const lastInputTime = useRef<number>(0);
 
   // Initialize State from LocalStorage if available
   const [gameState, setGameState] = useState<GameState>(() => {
@@ -96,8 +97,16 @@ const App: React.FC = () => {
     }
     return DEFAULT_GAME_STATE;
   });
+  
+  // Ref to hold latest gameState for polling loops without triggering re-effects
+  const gameStateRef = useRef(gameState);
+  useEffect(() => {
+      gameStateRef.current = gameState;
+  }, [gameState]);
 
   const [menuState, setMenuState] = useState<'main' | 'host' | 'join' | 'game' | 'settings'>('main');
+  const [mainMenuIndex, setMainMenuIndex] = useState(0); // 0: Local, 1: CPU, 2: Host, 3: Join, 4: Settings
+  const [settingsIndex, setSettingsIndex] = useState(0); 
   const [roomId, setRoomId] = useState('');
   const [joinId, setJoinId] = useState('');
   const [settingsTab, setSettingsTab] = useState<'audio_video' | 'controls'>('audio_video');
@@ -171,7 +180,151 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Poll Gamepads for Settings Menu
+  const cycleInput = (player: 1 | 2, direction: 1 | -1) => {
+      const gps = navigator.getGamepads ? Array.from(navigator.getGamepads()) : [];
+      const current = player === 1 ? gameStateRef.current.gamepadConfig.p1Index : gameStateRef.current.gamepadConfig.p2Index;
+      // Map null (kb) to -1
+      let val = current === null ? -1 : current;
+      val += direction;
+
+      // Range is -1 to gps.length - 1
+      // If we go below -1, wrap to end
+      if (val < -1) val = gps.length - 1;
+      // If we go above length-1, wrap to -1
+      if (val >= gps.length) val = -1;
+
+      // Map -1 back to null, else use val
+      updateGamepadAssignment(player, val === -1 ? 'kb' : val.toString());
+  };
+
+  // Poll Gamepads for Navigation (Main & Settings)
+  useEffect(() => {
+    if (menuState !== 'main' && menuState !== 'settings') return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      if (now - lastInputTime.current < 150) return; // Debounce
+
+      const gps = navigator.getGamepads ? Array.from(navigator.getGamepads()) : [];
+      let inputFound = false;
+      let actionTriggered = false;
+
+      // Check input on any gamepad
+      for (const gp of gps) {
+        if (!gp) continue;
+
+        // Navigation
+        const up = gp.buttons[12]?.pressed || gp.axes[1] < -0.5;
+        const down = gp.buttons[13]?.pressed || gp.axes[1] > 0.5;
+        const left = gp.buttons[14]?.pressed || gp.axes[0] < -0.5;
+        const right = gp.buttons[15]?.pressed || gp.axes[0] > 0.5;
+        
+        // Select
+        const select = gp.buttons[0]?.pressed || gp.buttons[9]?.pressed;
+
+        if (menuState === 'main') {
+            let newIndex = mainMenuIndex;
+            if (up) { newIndex = Math.max(0, mainMenuIndex - 1); inputFound = true; }
+            else if (down) { newIndex = Math.min(4, mainMenuIndex + 1); inputFound = true; }
+            
+            if (inputFound && newIndex !== mainMenuIndex) setMainMenuIndex(newIndex);
+            
+            if (select) {
+                actionTriggered = true;
+                inputFound = true;
+            }
+
+            if (actionTriggered) {
+                lastInputTime.current = now;
+                switch(mainMenuIndex) {
+                    case 0: startLocalGame(); break;
+                    case 1: startCpuGame(); break;
+                    case 2: handleHost(); break;
+                    case 3: setMenuState('join'); break;
+                    case 4: 
+                        setMenuState('settings'); 
+                        setSettingsIndex(0); 
+                        break;
+                }
+                return; // Break interval
+            }
+        } else if (menuState === 'settings' && !remapping) {
+            // Settings Navigation
+            const maxIndex = settingsTab === 'audio_video' ? 7 : 9;
+            let newIndex = settingsIndex;
+
+            if (up) { newIndex = Math.max(0, settingsIndex - 1); inputFound = true; }
+            else if (down) { newIndex = Math.min(maxIndex, settingsIndex + 1); inputFound = true; }
+
+            if (left || right) {
+                inputFound = true;
+                // Handle Horizontal Actions based on context
+                if (settingsIndex === 0) {
+                    // Toggle Tab
+                    const newTab = settingsTab === 'audio_video' ? 'controls' : 'audio_video';
+                    setSettingsTab(newTab);
+                    // Reset index slightly to avoid confusion if lists have diff lengths, or just keep 0
+                    setSettingsIndex(0);
+                    lastInputTime.current = now;
+                    return;
+                }
+                
+                if (settingsTab === 'audio_video' && settingsIndex === 1) {
+                    // Volume
+                    const delta = left ? -0.05 : 0.05;
+                    const newVol = Math.max(0, Math.min(1, gameStateRef.current.sfxVolume + delta));
+                    setGameState(prev => ({ ...prev, sfxVolume: newVol }));
+                    if (gameRef.current) gameRef.current.setSFXVolume(newVol);
+                } else if (settingsTab === 'controls') {
+                    if (settingsIndex === 1) cycleInput(1, left ? -1 : 1);
+                    if (settingsIndex === 5) cycleInput(2, left ? -1 : 1);
+                }
+            }
+
+            if (inputFound && newIndex !== settingsIndex) setSettingsIndex(newIndex);
+
+            if (select) {
+                inputFound = true;
+                lastInputTime.current = now; // Aggressive debounce for actions
+
+                if (settingsIndex === 0) {
+                   // Clicking tab header triggers switch too
+                   setSettingsTab(prev => prev === 'audio_video' ? 'controls' : 'audio_video');
+                }
+                
+                if (settingsTab === 'audio_video') {
+                    if (settingsIndex === 2) toggleSetting('crtScanlines');
+                    if (settingsIndex === 3) toggleSetting('crtVignette');
+                    if (settingsIndex === 4) toggleSetting('crtFlicker');
+                    if (settingsIndex === 5) gameRef.current?.playHitSound('high');
+                    if (settingsIndex === 6) playBase64Mp3();
+                    if (settingsIndex === 7) setMenuState('main');
+                } else {
+                    // Controls
+                    if (settingsIndex === 2) setRemapping({player: 1, action: 'highPunch'});
+                    if (settingsIndex === 3) setRemapping({player: 1, action: 'lowPunch'});
+                    if (settingsIndex === 4) setRemapping({player: 1, action: 'grab'});
+                    
+                    if (settingsIndex === 6) setRemapping({player: 2, action: 'highPunch'});
+                    if (settingsIndex === 7) setRemapping({player: 2, action: 'lowPunch'});
+                    if (settingsIndex === 8) setRemapping({player: 2, action: 'grab'});
+
+                    if (settingsIndex === 9) setMenuState('main');
+                }
+            }
+        }
+
+        if (inputFound) {
+            lastInputTime.current = now;
+            break; // Handle one controller input per frame
+        }
+      }
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [menuState, mainMenuIndex, settingsIndex, settingsTab, remapping]); // Removed gameState dependency to prevent frequent interval reset
+
+  // Poll Gamepads for Settings Menu Remapping
   useEffect(() => {
     if (menuState !== 'settings') return;
 
@@ -180,40 +333,38 @@ const App: React.FC = () => {
             setAvailableGamepads(Array.from(navigator.getGamepads()));
         }
 
-        // Remapping Logic
+        // Remapping Logic - runs independent of nav
         if (remapping) {
             const gps = navigator.getGamepads ? Array.from(navigator.getGamepads()) : [];
-            const targetIndex = remapping.player === 1 ? gameState.gamepadConfig.p1Index : gameState.gamepadConfig.p2Index;
+            // Allow any connected controller to map
             
-            if (targetIndex !== null && gps[targetIndex]) {
-                const gp = gps[targetIndex];
-                if (gp) {
-                    for (let i = 0; i < gp.buttons.length; i++) {
-                        if (gp.buttons[i].pressed) {
-                            // Assign button
-                            const newConfig = { ...gameState.gamepadConfig };
-                            if (remapping.player === 1) {
-                                newConfig.p1Mapping = { ...newConfig.p1Mapping, [remapping.action]: i };
-                            } else {
-                                newConfig.p2Mapping = { ...newConfig.p2Mapping, [remapping.action]: i };
-                            }
-                            
-                            setGameState(prev => ({ ...prev, gamepadConfig: newConfig }));
-                            if (gameRef.current) {
-                                gameRef.current.updateGamepadSettings(newConfig);
-                            }
-                            setRemapping(null); // End remapping
-                            break;
+            for(const gp of gps) {
+                if(!gp) continue;
+                for (let i = 0; i < gp.buttons.length; i++) {
+                    if (gp.buttons[i].pressed) {
+                        // Assign button
+                        const newConfig = { ...gameStateRef.current.gamepadConfig };
+                        if (remapping.player === 1) {
+                            newConfig.p1Mapping = { ...newConfig.p1Mapping, [remapping.action]: i };
+                        } else {
+                            newConfig.p2Mapping = { ...newConfig.p2Mapping, [remapping.action]: i };
                         }
+                        
+                        setGameState(prev => ({ ...prev, gamepadConfig: newConfig }));
+                        if (gameRef.current) {
+                            gameRef.current.updateGamepadSettings(newConfig);
+                        }
+                        setRemapping(null); // End remapping
+                        lastInputTime.current = Date.now() + 500; // Extra debounce delay after mapping
+                        return;
                     }
                 }
             }
         }
-
-    }, 100);
+    }, 50);
 
     return () => clearInterval(interval);
-  }, [menuState, remapping, gameState.gamepadConfig]);
+  }, [menuState, remapping]);
 
   // Effect for Walkthrough
   useEffect(() => {
@@ -332,7 +483,7 @@ const App: React.FC = () => {
 
   const updateGamepadAssignment = (player: 1 | 2, indexString: string) => {
       const index = indexString === 'kb' ? null : parseInt(indexString);
-      const newConfig = { ...gameState.gamepadConfig };
+      const newConfig = { ...gameStateRef.current.gamepadConfig };
       if (player === 1) newConfig.p1Index = index;
       else newConfig.p2Index = index;
 
@@ -350,7 +501,7 @@ const App: React.FC = () => {
     }
 
     const audio = new Audio(`data:audio/mp3;base64,${THEME_SONG_B64}`);
-    audio.volume = gameState.sfxVolume;
+    audio.volume = gameStateRef.current.sfxVolume;
     audio.loop = false;
     audio.play().catch(err => console.error("Error playing base64 audio:", err));
     musicRef.current = audio;
@@ -392,21 +543,44 @@ const App: React.FC = () => {
                                 <div className="mb-2 drop-shadow-[0_0_8px_rgba(233,69,96,0.8)]">
                                   <PixelText text="ENFORCER" scale={4} />
                                 </div>
-                                <button id="tour-local-btn" onClick={startLocalGame} className="w-full bg-[#4ecdc4] text-[#1a1a2e] px-8 py-2.5 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition shadow-[0_0_15px_rgba(78,205,196,0.4)]">
+                                <button 
+                                  id="tour-local-btn" 
+                                  onClick={startLocalGame}
+                                  onMouseEnter={() => setMainMenuIndex(0)}
+                                  className={`w-full bg-[#4ecdc4] text-[#1a1a2e] px-8 py-2.5 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition shadow-[0_0_15px_rgba(78,205,196,0.4)] ${mainMenuIndex === 0 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
+                                >
                                     LOCAL 2 PLAYER
                                 </button>
-                                <button id="tour-cpu-btn" onClick={startCpuGame} className="w-full bg-[#feca57] text-[#1a1a2e] px-8 py-2.5 rounded-lg font-bold text-xl hover:bg-[#e1b12c] transition shadow-[0_0_15px_rgba(254,202,87,0.4)]">
+                                <button 
+                                  id="tour-cpu-btn" 
+                                  onClick={startCpuGame} 
+                                  onMouseEnter={() => setMainMenuIndex(1)}
+                                  className={`w-full bg-[#feca57] text-[#1a1a2e] px-8 py-2.5 rounded-lg font-bold text-xl hover:bg-[#e1b12c] transition shadow-[0_0_15px_rgba(254,202,87,0.4)] ${mainMenuIndex === 1 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
+                                >
                                     VS CPU
                                 </button>
                                 <div className="flex gap-4" id="tour-online-section">
-                                    <button onClick={handleHost} className="bg-[#e94560] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#d13650] shadow-[0_0_15px_rgba(233,69,96,0.4)]">
+                                    <button 
+                                      onClick={handleHost} 
+                                      onMouseEnter={() => setMainMenuIndex(2)}
+                                      className={`bg-[#e94560] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#d13650] shadow-[0_0_15px_rgba(233,69,96,0.4)] ${mainMenuIndex === 2 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
+                                    >
                                         HOST ONLINE
                                     </button>
-                                    <button onClick={() => setMenuState('join')} className="bg-[#16213e] border-2 border-[#e94560] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#1f2b4d]">
+                                    <button 
+                                      onClick={() => setMenuState('join')} 
+                                      onMouseEnter={() => setMainMenuIndex(3)}
+                                      className={`bg-[#16213e] border-2 border-[#e94560] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#1f2b4d] ${mainMenuIndex === 3 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
+                                    >
                                         JOIN ONLINE
                                     </button>
                                 </div>
-                                <button id="tour-settings-btn" onClick={() => setMenuState('settings')} className={`text-gray-400 hover:text-white mt-2 font-bold tracking-widest text-sm border-b transition-all ${menuState === 'settings' ? 'border-white text-white' : 'border-transparent'}`}>
+                                <button 
+                                  id="tour-settings-btn" 
+                                  onClick={() => { setMenuState('settings'); setSettingsIndex(0); }}
+                                  onMouseEnter={() => setMainMenuIndex(4)}
+                                  className={`text-gray-400 hover:text-white mt-2 font-bold tracking-widest text-sm border-b transition-all ${menuState === 'settings' ? 'border-white text-white' : 'border-transparent'} ${mainMenuIndex === 4 && menuState === 'main' ? 'text-white border-white scale-110' : ''}`}
+                                >
                                     {menuState === 'settings' ? '' : '⚙️ SETTINGS'}
                                 </button>
                             </div>
@@ -445,16 +619,16 @@ const App: React.FC = () => {
 
                         {menuState === 'settings' && (
                             <div className="absolute top-[30px] bottom-[135px] left-1/2 -translate-x-1/2 flex flex-col bg-[#16213e] rounded-xl border-2 border-[#e94560] shadow-2xl min-w-[340px] overflow-hidden z-50">
-                                <div className="flex w-full border-b border-gray-700">
+                                <div className={`flex w-full border-b border-gray-700 ${settingsIndex === 0 ? 'ring-2 ring-white z-10' : ''}`}>
                                     <button 
                                         className={`flex-1 py-2 text-xs font-bold ${settingsTab === 'audio_video' ? 'bg-[#e94560] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                                        onClick={() => setSettingsTab('audio_video')}
+                                        onClick={() => { setSettingsTab('audio_video'); setSettingsIndex(0); }}
                                     >
                                         AUDIO / VIDEO
                                     </button>
                                     <button 
                                         className={`flex-1 py-2 text-xs font-bold ${settingsTab === 'controls' ? 'bg-[#e94560] text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                                        onClick={() => setSettingsTab('controls')}
+                                        onClick={() => { setSettingsTab('controls'); setSettingsIndex(0); }}
                                     >
                                         CONTROLS
                                     </button>
@@ -462,7 +636,7 @@ const App: React.FC = () => {
                                 <div className="px-6 py-3 flex flex-col items-center gap-2 overflow-y-auto max-h-[300px]">
                                     {settingsTab === 'audio_video' && (
                                         <>
-                                            <div className="w-full">
+                                            <div className={`w-full p-1 rounded ${settingsIndex === 1 ? 'bg-white/10 ring-1 ring-[#4ecdc4]' : ''}`}>
                                                 <label className="flex justify-between text-[#4ecdc4] mb-1 font-bold text-xs">
                                                     <span>SFX VOLUME</span>
                                                     <span>{Math.round(gameState.sfxVolume * 100)}%</span>
@@ -472,29 +646,42 @@ const App: React.FC = () => {
                                                     min="0" max="1" step="0.05"
                                                     value={gameState.sfxVolume}
                                                     onChange={handleVolumeChange}
+                                                    onMouseEnter={() => setSettingsIndex(1)}
                                                     className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560] hover:accent-[#ff6b81]"
                                                 />
                                             </div>
                                             <div className="w-full flex flex-col gap-1">
                                                 <div className="text-[#4ecdc4] font-bold text-[10px] uppercase">Visual Filters</div>
                                                 <div className="grid grid-cols-3 gap-2">
-                                                    <label className="flex flex-col items-center cursor-pointer group">
+                                                    <label className={`flex flex-col items-center cursor-pointer group p-1 rounded ${settingsIndex === 2 ? 'bg-white/10 ring-1 ring-[#e94560]' : ''}`} onMouseEnter={() => setSettingsIndex(2)}>
                                                         <span className="text-gray-300 text-[10px] mb-1">Scan</span>
                                                         <input type="checkbox" checked={gameState.crtScanlines} onChange={() => toggleSetting('crtScanlines')} className="w-3 h-3 accent-[#e94560]"/>
                                                     </label>
-                                                    <label className="flex flex-col items-center cursor-pointer group">
+                                                    <label className={`flex flex-col items-center cursor-pointer group p-1 rounded ${settingsIndex === 3 ? 'bg-white/10 ring-1 ring-[#e94560]' : ''}`} onMouseEnter={() => setSettingsIndex(3)}>
                                                         <span className="text-gray-300 text-[10px] mb-1">Vignette</span>
                                                         <input type="checkbox" checked={gameState.crtVignette} onChange={() => toggleSetting('crtVignette')} className="w-3 h-3 accent-[#e94560]"/>
                                                     </label>
-                                                    <label className="flex flex-col items-center cursor-pointer group">
+                                                    <label className={`flex flex-col items-center cursor-pointer group p-1 rounded ${settingsIndex === 4 ? 'bg-white/10 ring-1 ring-[#e94560]' : ''}`} onMouseEnter={() => setSettingsIndex(4)}>
                                                         <span className="text-gray-300 text-[10px] mb-1">Flicker</span>
                                                         <input type="checkbox" checked={gameState.crtFlicker} onChange={() => toggleSetting('crtFlicker')} className="w-3 h-3 accent-[#e94560]"/>
                                                     </label>
                                                 </div>
                                             </div>
                                             <div className="flex gap-2 w-full mt-1">
-                                                <button onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-[10px] transition-colors">SFX TEST</button>
-                                                <button onClick={playBase64Mp3} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-[10px] transition-colors">SONG</button>
+                                                <button 
+                                                    onMouseEnter={() => setSettingsIndex(5)}
+                                                    onClick={() => { if (gameRef.current) gameRef.current.playHitSound('high'); }} 
+                                                    className={`flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-[10px] transition-colors ${settingsIndex === 5 ? 'ring-2 ring-white' : ''}`}
+                                                >
+                                                    SFX TEST
+                                                </button>
+                                                <button 
+                                                    onMouseEnter={() => setSettingsIndex(6)}
+                                                    onClick={playBase64Mp3} 
+                                                    className={`flex-1 bg-gray-700 hover:bg-gray-600 text-white py-1 rounded font-bold text-[10px] transition-colors ${settingsIndex === 6 ? 'ring-2 ring-white' : ''}`}
+                                                >
+                                                    SONG
+                                                </button>
                                             </div>
                                         </>
                                     )}
@@ -504,9 +691,10 @@ const App: React.FC = () => {
                                             <div className="bg-black/30 p-2 rounded">
                                                 <div className="text-[#4ecdc4] font-bold text-[10px] uppercase mb-1">PLAYER 1 INPUT</div>
                                                 <select 
-                                                    className="w-full bg-[#1a1a2e] text-white text-xs border border-gray-600 rounded p-1"
+                                                    className={`w-full bg-[#1a1a2e] text-white text-xs border border-gray-600 rounded p-1 ${settingsIndex === 1 ? 'ring-2 ring-[#4ecdc4]' : ''}`}
                                                     value={gameState.gamepadConfig.p1Index === null ? 'kb' : gameState.gamepadConfig.p1Index}
                                                     onChange={(e) => updateGamepadAssignment(1, e.target.value)}
+                                                    onMouseEnter={() => setSettingsIndex(1)}
                                                 >
                                                     <option value="kb">Keyboard (WASD)</option>
                                                     {availableGamepads.map((gp, i) => gp && (
@@ -516,20 +704,23 @@ const App: React.FC = () => {
                                                 {gameState.gamepadConfig.p1Index !== null && (
                                                     <div className="mt-2 grid grid-cols-3 gap-1">
                                                         <button 
+                                                            onMouseEnter={() => setSettingsIndex(2)}
                                                             onClick={() => setRemapping({player: 1, action: 'highPunch'})}
-                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 1 && remapping?.action === 'highPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 1 && remapping?.action === 'highPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'} ${settingsIndex === 2 ? 'ring-1 ring-white' : ''}`}
                                                         >
                                                             HI Punch: {gameState.gamepadConfig.p1Mapping.highPunch}
                                                         </button>
                                                         <button 
+                                                            onMouseEnter={() => setSettingsIndex(3)}
                                                             onClick={() => setRemapping({player: 1, action: 'lowPunch'})}
-                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 1 && remapping?.action === 'lowPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 1 && remapping?.action === 'lowPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'} ${settingsIndex === 3 ? 'ring-1 ring-white' : ''}`}
                                                         >
                                                             LO Punch: {gameState.gamepadConfig.p1Mapping.lowPunch}
                                                         </button>
                                                         <button 
+                                                            onMouseEnter={() => setSettingsIndex(4)}
                                                             onClick={() => setRemapping({player: 1, action: 'grab'})}
-                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 1 && remapping?.action === 'grab' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 1 && remapping?.action === 'grab' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'} ${settingsIndex === 4 ? 'ring-1 ring-white' : ''}`}
                                                         >
                                                             Hold: {gameState.gamepadConfig.p1Mapping.grab}
                                                         </button>
@@ -540,9 +731,10 @@ const App: React.FC = () => {
                                             <div className="bg-black/30 p-2 rounded">
                                                 <div className="text-[#e94560] font-bold text-[10px] uppercase mb-1">PLAYER 2 INPUT</div>
                                                 <select 
-                                                    className="w-full bg-[#1a1a2e] text-white text-xs border border-gray-600 rounded p-1"
+                                                    className={`w-full bg-[#1a1a2e] text-white text-xs border border-gray-600 rounded p-1 ${settingsIndex === 5 ? 'ring-2 ring-[#e94560]' : ''}`}
                                                     value={gameState.gamepadConfig.p2Index === null ? 'kb' : gameState.gamepadConfig.p2Index}
                                                     onChange={(e) => updateGamepadAssignment(2, e.target.value)}
+                                                    onMouseEnter={() => setSettingsIndex(5)}
                                                 >
                                                     <option value="kb">Keyboard (Arrows)</option>
                                                     {availableGamepads.map((gp, i) => gp && (
@@ -552,20 +744,23 @@ const App: React.FC = () => {
                                                 {gameState.gamepadConfig.p2Index !== null && (
                                                     <div className="mt-2 grid grid-cols-3 gap-1">
                                                         <button 
+                                                            onMouseEnter={() => setSettingsIndex(6)}
                                                             onClick={() => setRemapping({player: 2, action: 'highPunch'})}
-                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 2 && remapping?.action === 'highPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 2 && remapping?.action === 'highPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'} ${settingsIndex === 6 ? 'ring-1 ring-white' : ''}`}
                                                         >
                                                             HI: {gameState.gamepadConfig.p2Mapping.highPunch}
                                                         </button>
                                                         <button 
+                                                            onMouseEnter={() => setSettingsIndex(7)}
                                                             onClick={() => setRemapping({player: 2, action: 'lowPunch'})}
-                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 2 && remapping?.action === 'lowPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 2 && remapping?.action === 'lowPunch' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'} ${settingsIndex === 7 ? 'ring-1 ring-white' : ''}`}
                                                         >
                                                             LO: {gameState.gamepadConfig.p2Mapping.lowPunch}
                                                         </button>
                                                         <button 
+                                                            onMouseEnter={() => setSettingsIndex(8)}
                                                             onClick={() => setRemapping({player: 2, action: 'grab'})}
-                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 2 && remapping?.action === 'grab' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'}`}
+                                                            className={`text-[9px] py-1 px-1 rounded ${remapping?.player === 2 && remapping?.action === 'grab' ? 'bg-red-600 animate-pulse' : 'bg-gray-700 hover:bg-gray-600'} ${settingsIndex === 8 ? 'ring-1 ring-white' : ''}`}
                                                         >
                                                             GR: {gameState.gamepadConfig.p2Mapping.grab}
                                                         </button>
@@ -580,7 +775,13 @@ const App: React.FC = () => {
                                         </div>
                                     )}
 
-                                    <button onClick={() => setMenuState('main')} className="w-full mt-2 bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-1.5 rounded font-bold text-xs transition-colors">DONE</button>
+                                    <button 
+                                        onMouseEnter={() => setSettingsIndex(settingsTab === 'audio_video' ? 7 : 9)}
+                                        onClick={() => setMenuState('main')} 
+                                        className={`w-full mt-2 bg-[#4ecdc4] hover:bg-[#3dbdb4] text-[#1a1a2e] py-1.5 rounded font-bold text-xs transition-colors ${settingsIndex === (settingsTab === 'audio_video' ? 7 : 9) ? 'ring-2 ring-white scale-105' : ''}`}
+                                    >
+                                        DONE
+                                    </button>
                                 </div>
                             </div>
                         )}
