@@ -119,7 +119,7 @@ export class Player extends Actor {
             }
             this.applyPhysics();
             this.checkCollisions();
-        }
+        }   
         
         this.updateAnimationLogic();
         this.updateGraphics();

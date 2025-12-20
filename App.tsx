@@ -113,6 +113,34 @@ const App: React.FC = () => {
   const [availableGamepads, setAvailableGamepads] = useState<(Gamepad | null)[]>([]);
   const [remapping, setRemapping] = useState<{ player: 1 | 2, action: 'highPunch' | 'lowPunch' | 'grab' } | null>(null);
 
+   // Responsive Scaling Logic
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const handleResize = () => {
+      // Dimensions of the TV case including padding and controls
+      const contentWidth = 920; 
+      const contentHeight = 600;
+
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+
+      const scaleX = windowWidth / contentWidth;
+      const scaleY = windowHeight / contentHeight;
+
+      // Fit within screen, maintaining aspect ratio. 
+      // Using 0.95 factor to leave a small safety margin.
+      const newScale = Math.min(scaleX, scaleY) * 0.95;
+      
+      setScale(newScale);
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Save settings to LocalStorage whenever they change
   useEffect(() => {
     const settingsToSave = {
@@ -137,7 +165,9 @@ const App: React.FC = () => {
       backgroundColor: Color.fromHex('#90fcfc'),
       pixelArt: true,
       fixedUpdateFps: 60,
-      antialiasing: false
+      antialiasing: false,
+      //snapToPixel: true,
+      suppressHiDPIScaling: true
     });
 
     // Apply saved settings to engine immediately
@@ -513,7 +543,7 @@ const App: React.FC = () => {
 
   return (
     <div 
-      className="flex flex-col items-center justify-center min-h-screen font-sans relative overflow-hidden"
+       className="flex flex-col items-center justify-center h-screen w-screen font-sans relative overflow-hidden bg-black"
       style={{
         backgroundImage: `url(${FULLRINK_SHEET_B64})`,
         backgroundSize: 'cover',
@@ -526,9 +556,9 @@ const App: React.FC = () => {
           <div className="arena-glass-glare"></div>
       </div>
 
-      <div className="tv-case" id="tour-tv-case">
+      <div className="tv-case" id="tour-tv-case" style={{ transform: `scale(${scale})` }}>
         <div className="tv-screen-bezel">
-            <div className="tv-glass-container relative" style={{width: '800px', height: '400px'}}>
+            <div className="tv-glass-container relative" style={{width: '100%', maxWidth: '800px', aspectRatio: '2/1'}}>
                 <canvas
                     ref={canvasRef}
                     id="gameCanvas"
@@ -538,6 +568,11 @@ const App: React.FC = () => {
 
                 {menuState !== 'game' && (
                     <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-start pt-10 z-20">
+                        {menuState === 'main' && (
+                            <div className="absolute top-4 left-4 text-gray-500 text-[10px] font-mono opacity-50">
+                                v0.5 - pwa install
+                            </div>
+                        )}
                         {(menuState === 'main' || menuState === 'settings') && (
                             <div className="flex flex-col gap-3 items-center">
                                 <div className="mb-2 drop-shadow-[0_0_8px_rgba(233,69,96,0.8)]">
