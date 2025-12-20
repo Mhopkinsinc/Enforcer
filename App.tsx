@@ -104,8 +104,20 @@ const App: React.FC = () => {
       gameStateRef.current = gameState;
   }, [gameState]);
 
-  const [menuState, setMenuState] = useState<'main' | 'host' | 'join' | 'game' | 'settings'>('main');
-  const [mainMenuIndex, setMainMenuIndex] = useState(0); // 0: Local, 1: CPU, 2: Host, 3: Join, 4: Settings
+  const [menuState, setMenuState] = useState<'main' | 'host' | 'join' | 'game' | 'settings' | 'leaderboard'>('main');
+  const [mainMenuIndex, setMainMenuIndex] = useState(0); 
+  // Main Menu Index Mapping:
+  // 0: Local, 1: CPU
+  // 2: Host, 3: Join
+  // 4: Leaderboard
+  // 5: Settings
+
+  const [gameOverIndex, setGameOverIndex] = useState(0);
+  // Game Over Index Mapping:
+  // 0: Rematch
+  // 1: Watch Replay
+  // 2: Main Menu
+
   const [settingsIndex, setSettingsIndex] = useState(0); 
   const [roomId, setRoomId] = useState('');
   const [joinId, setJoinId] = useState('');
@@ -113,7 +125,7 @@ const App: React.FC = () => {
   const [availableGamepads, setAvailableGamepads] = useState<(Gamepad | null)[]>([]);
   const [remapping, setRemapping] = useState<{ player: 1 | 2, action: 'highPunch' | 'lowPunch' | 'grab' } | null>(null);
 
-   // Responsive Scaling Logic
+  // Responsive Scaling Logic
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
@@ -166,7 +178,6 @@ const App: React.FC = () => {
       pixelArt: true,
       fixedUpdateFps: 60,
       antialiasing: false,
-      //snapToPixel: true,
       suppressHiDPIScaling: true
     });
 
@@ -227,9 +238,11 @@ const App: React.FC = () => {
       updateGamepadAssignment(player, val === -1 ? 'kb' : val.toString());
   };
 
-  // Poll Gamepads for Navigation (Main & Settings)
+  // Poll Gamepads for Navigation (Main & Settings & Game Over)
   useEffect(() => {
-    if (menuState !== 'main' && menuState !== 'settings') return;
+    // Only block gamepad navigation if we are in game AND not showing game over.
+    // If we are in game AND showing game over, we want navigation.
+    if ((menuState === 'game' && !gameState.showGameOver) || menuState === 'host' || menuState === 'join') return;
 
     const interval = setInterval(() => {
       const now = Date.now();
@@ -249,13 +262,70 @@ const App: React.FC = () => {
         const left = gp.buttons[14]?.pressed || gp.axes[0] < -0.5;
         const right = gp.buttons[15]?.pressed || gp.axes[0] > 0.5;
         
-        // Select
+        // Select / Back
         const select = gp.buttons[0]?.pressed || gp.buttons[9]?.pressed;
+        const back = gp.buttons[1]?.pressed;
 
-        if (menuState === 'main') {
+        if (gameState.showGameOver && !gameState.isReplaying) {
+             let newIndex = gameOverIndex;
+             if (up) {
+                newIndex = Math.max(0, gameOverIndex - 1);
+                inputFound = true;
+             } else if (down) {
+                newIndex = Math.min(2, gameOverIndex + 1);
+                inputFound = true;
+             }
+             
+             if (inputFound && newIndex !== gameOverIndex) setGameOverIndex(newIndex);
+             
+             if (select) {
+                 actionTriggered = true;
+                 inputFound = true;
+             }
+
+             if (actionTriggered) {
+                 lastInputTime.current = now;
+                 if (gameOverIndex === 0) { // Rematch
+                     if (gameRef.current) {
+                        gameRef.current.restartGame(gameRef.current.isCPUGame);
+                        playBase64Mp3();
+                     }
+                 } else if (gameOverIndex === 1) { // Watch Replay
+                     toggleReplay();
+                 } else if (gameOverIndex === 2) { // Main Menu
+                     if (gameState.isMultiplayer) {
+                         window.location.reload();
+                     } else {
+                         setMenuState('main');
+                     }
+                 }
+                 return;
+             }
+
+        } else if (menuState === 'main') {
             let newIndex = mainMenuIndex;
-            if (up) { newIndex = Math.max(0, mainMenuIndex - 1); inputFound = true; }
-            else if (down) { newIndex = Math.min(4, mainMenuIndex + 1); inputFound = true; }
+            
+            if (up) {
+                if (mainMenuIndex === 2) newIndex = 0;
+                else if (mainMenuIndex === 3) newIndex = 1;
+                else if (mainMenuIndex === 4) newIndex = 2; // From Leaderboard to Host
+                else if (mainMenuIndex === 5) newIndex = 4; // From Settings to Leaderboard
+                inputFound = true;
+            } else if (down) {
+                if (mainMenuIndex === 0) newIndex = 2;
+                else if (mainMenuIndex === 1) newIndex = 3;
+                else if (mainMenuIndex === 2 || mainMenuIndex === 3) newIndex = 4; // To Leaderboard
+                else if (mainMenuIndex === 4) newIndex = 5; // To Settings
+                inputFound = true;
+            } else if (left) {
+                if (mainMenuIndex === 1) newIndex = 0;
+                else if (mainMenuIndex === 3) newIndex = 2;
+                inputFound = true;
+            } else if (right) {
+                if (mainMenuIndex === 0) newIndex = 1;
+                else if (mainMenuIndex === 2) newIndex = 3;
+                inputFound = true;
+            }
             
             if (inputFound && newIndex !== mainMenuIndex) setMainMenuIndex(newIndex);
             
@@ -271,7 +341,8 @@ const App: React.FC = () => {
                     case 1: startCpuGame(); break;
                     case 2: handleHost(); break;
                     case 3: setMenuState('join'); break;
-                    case 4: 
+                    case 4: setMenuState('leaderboard'); break;
+                    case 5: 
                         setMenuState('settings'); 
                         setSettingsIndex(0); 
                         break;
@@ -313,9 +384,14 @@ const App: React.FC = () => {
 
             if (inputFound && newIndex !== settingsIndex) setSettingsIndex(newIndex);
 
-            if (select) {
+            if (select || back) {
                 inputFound = true;
                 lastInputTime.current = now; // Aggressive debounce for actions
+
+                if (back || (settingsIndex === (settingsTab === 'audio_video' ? 7 : 9) && select)) {
+                     setMenuState('main');
+                     return;
+                }
 
                 if (settingsIndex === 0) {
                    // Clicking tab header triggers switch too
@@ -328,7 +404,6 @@ const App: React.FC = () => {
                     if (settingsIndex === 4) toggleSetting('crtFlicker');
                     if (settingsIndex === 5) gameRef.current?.playHitSound('high');
                     if (settingsIndex === 6) playBase64Mp3();
-                    if (settingsIndex === 7) setMenuState('main');
                 } else {
                     // Controls
                     if (settingsIndex === 2) setRemapping({player: 1, action: 'highPunch'});
@@ -338,9 +413,13 @@ const App: React.FC = () => {
                     if (settingsIndex === 6) setRemapping({player: 2, action: 'highPunch'});
                     if (settingsIndex === 7) setRemapping({player: 2, action: 'lowPunch'});
                     if (settingsIndex === 8) setRemapping({player: 2, action: 'grab'});
-
-                    if (settingsIndex === 9) setMenuState('main');
                 }
+            }
+        } else if (menuState === 'leaderboard') {
+            if (select || back) {
+                setMenuState('main');
+                lastInputTime.current = now;
+                return;
             }
         }
 
@@ -352,7 +431,7 @@ const App: React.FC = () => {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [menuState, mainMenuIndex, settingsIndex, settingsTab, remapping]); // Removed gameState dependency to prevent frequent interval reset
+  }, [menuState, mainMenuIndex, settingsIndex, settingsTab, remapping, gameOverIndex, gameState.showGameOver, gameState.isReplaying]); 
 
   // Poll Gamepads for Settings Menu Remapping
   useEffect(() => {
@@ -543,7 +622,7 @@ const App: React.FC = () => {
 
   return (
     <div 
-       className="flex flex-col items-center justify-center h-screen w-screen font-sans relative overflow-hidden bg-black"
+      className="flex flex-col items-center justify-center h-screen w-screen font-sans relative overflow-hidden bg-black"
       style={{
         backgroundImage: `url(${FULLRINK_SHEET_B64})`,
         backgroundSize: 'cover',
@@ -558,7 +637,7 @@ const App: React.FC = () => {
 
       <div className="tv-case" id="tour-tv-case" style={{ transform: `scale(${scale})` }}>
         <div className="tv-screen-bezel">
-            <div className="tv-glass-container relative" style={{width: '100%', maxWidth: '800px', aspectRatio: '2/1'}}>
+            <div className="tv-glass-container relative" style={{width: '800px', height: '400px'}}>
                 <canvas
                     ref={canvasRef}
                     id="gameCanvas"
@@ -570,51 +649,60 @@ const App: React.FC = () => {
                     <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-start pt-10 z-20">
                         {menuState === 'main' && (
                             <div className="absolute top-4 left-4 text-gray-500 text-[10px] font-mono opacity-50">
-                                v0.5 - pwa install
+                                v0.6 - Leaderboard
                             </div>
                         )}
                         {(menuState === 'main' || menuState === 'settings') && (
-                            <div className="flex flex-col gap-3 items-center">
+                            <div className="flex flex-col gap-3 items-center w-[80%] max-w-[400px]">
                                 <div className="mb-2 drop-shadow-[0_0_8px_rgba(233,69,96,0.8)]">
                                   <PixelText text="ENFORCER" scale={4} />
                                 </div>
-                                <button 
-                                  id="tour-local-btn" 
-                                  onClick={startLocalGame}
-                                  onMouseEnter={() => setMainMenuIndex(0)}
-                                  className={`w-full bg-[#4ecdc4] text-[#1a1a2e] px-8 py-2.5 rounded-lg font-bold text-xl hover:bg-[#3dbdb4] transition shadow-[0_0_15px_rgba(78,205,196,0.4)] ${mainMenuIndex === 0 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
-                                >
-                                    LOCAL 2 PLAYER
-                                </button>
-                                <button 
-                                  id="tour-cpu-btn" 
-                                  onClick={startCpuGame} 
-                                  onMouseEnter={() => setMainMenuIndex(1)}
-                                  className={`w-full bg-[#feca57] text-[#1a1a2e] px-8 py-2.5 rounded-lg font-bold text-xl hover:bg-[#e1b12c] transition shadow-[0_0_15px_rgba(254,202,87,0.4)] ${mainMenuIndex === 1 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
-                                >
-                                    VS CPU
-                                </button>
-                                <div className="flex gap-4" id="tour-online-section">
+                                <div className="flex gap-4 w-full">
+                                    <button 
+                                      id="tour-local-btn" 
+                                      onClick={startLocalGame}
+                                      onMouseEnter={() => setMainMenuIndex(0)}
+                                      className={`flex-1 bg-[#4ecdc4] text-[#1a1a2e] py-2 rounded-lg font-bold text-lg hover:bg-[#3dbdb4] transition shadow-[0_0_15px_rgba(78,205,196,0.4)] ${mainMenuIndex === 0 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
+                                    >
+                                        LOCAL 2P
+                                    </button>
+                                    <button 
+                                      id="tour-cpu-btn" 
+                                      onClick={startCpuGame} 
+                                      onMouseEnter={() => setMainMenuIndex(1)}
+                                      className={`flex-1 bg-[#feca57] text-[#1a1a2e] py-2 rounded-lg font-bold text-lg hover:bg-[#e1b12c] transition shadow-[0_0_15px_rgba(254,202,87,0.4)] ${mainMenuIndex === 1 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
+                                    >
+                                        VS CPU
+                                    </button>
+                                </div>
+                                <div className="flex gap-4 w-full" id="tour-online-section">
                                     <button 
                                       onClick={handleHost} 
                                       onMouseEnter={() => setMainMenuIndex(2)}
-                                      className={`bg-[#e94560] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#d13650] shadow-[0_0_15px_rgba(233,69,96,0.4)] ${mainMenuIndex === 2 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
+                                      className={`flex-1 bg-[#e94560] text-white py-2 rounded-lg font-bold hover:bg-[#d13650] shadow-[0_0_15px_rgba(233,69,96,0.4)] ${mainMenuIndex === 2 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
                                     >
                                         HOST ONLINE
                                     </button>
                                     <button 
                                       onClick={() => setMenuState('join')} 
                                       onMouseEnter={() => setMainMenuIndex(3)}
-                                      className={`bg-[#16213e] border-2 border-[#e94560] text-white px-6 py-2 rounded-lg font-bold hover:bg-[#1f2b4d] ${mainMenuIndex === 3 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
+                                      className={`flex-1 bg-[#16213e] border-2 border-[#e94560] text-white py-2 rounded-lg font-bold hover:bg-[#1f2b4d] ${mainMenuIndex === 3 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
                                     >
                                         JOIN ONLINE
                                     </button>
                                 </div>
                                 <button 
+                                  onClick={() => setMenuState('leaderboard')}
+                                  onMouseEnter={() => setMainMenuIndex(4)}
+                                  className={`w-full bg-[#16213e] border-2 border-[#4ecdc4] text-[#4ecdc4] py-2 rounded-lg font-bold hover:bg-[#1f2b4d] shadow-[0_0_10px_rgba(78,205,196,0.2)] ${mainMenuIndex === 4 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
+                                >
+                                    ONLINE LEADERBOARD
+                                </button>
+                                <button 
                                   id="tour-settings-btn" 
                                   onClick={() => { setMenuState('settings'); setSettingsIndex(0); }}
-                                  onMouseEnter={() => setMainMenuIndex(4)}
-                                  className={`text-gray-400 hover:text-white mt-2 font-bold tracking-widest text-sm border-b transition-all ${menuState === 'settings' ? 'border-white text-white' : 'border-transparent'} ${mainMenuIndex === 4 && menuState === 'main' ? 'text-white border-white scale-110' : ''}`}
+                                  onMouseEnter={() => setMainMenuIndex(5)}
+                                  className={`text-gray-400 hover:text-white mt-2 font-bold tracking-widest text-sm border-b transition-all ${menuState === 'settings' ? 'border-white text-white' : 'border-transparent'} ${mainMenuIndex === 5 && menuState === 'main' ? 'text-white border-white scale-110' : ''}`}
                                 >
                                     {menuState === 'settings' ? '' : '⚙️ SETTINGS'}
                                 </button>
@@ -649,6 +737,18 @@ const App: React.FC = () => {
                                         CONNECT
                                     </button>
                                 </div>
+                            </div>
+                        )}
+
+                        {menuState === 'leaderboard' && (
+                            <div className="flex flex-col items-center justify-center h-[280px] w-full gap-4 p-6 text-center">
+                                <h2 className="text-2xl text-[#feca57] font-bold mb-4">ONLINE LEADERBOARD</h2>
+                                <div className="bg-[#16213e] p-8 rounded border border-gray-600 w-full max-w-[400px] flex items-center justify-center min-h-[150px]">
+                                    <p className="text-gray-400 text-lg animate-pulse tracking-widest">COMING SOON</p>
+                                </div>
+                                <button onClick={() => setMenuState('main')} className="text-gray-400 hover:text-white mt-4 underline">
+                                    BACK
+                                </button>
                             </div>
                         )}
 
@@ -889,25 +989,32 @@ const App: React.FC = () => {
                             )}
                         </div>
                         <div className="flex flex-col gap-3 items-center">
-                            <div className="text-white text-lg">
-                                {gameState.isMultiplayer 
-                                    ? (gameState.isHost ? "Press SPACE to rematch" : "Waiting for Host to rematch...") 
-                                    : "Press SPACE to fight again"
-                                }
-                            </div>
+                            {(!gameState.isMultiplayer || gameState.isHost) ? (
+                                <button
+                                    onMouseEnter={() => setGameOverIndex(0)}
+                                    onClick={() => { if(gameRef.current) { gameRef.current.restartGame(gameRef.current.isCPUGame); playBase64Mp3(); }}}
+                                    className={`px-6 py-2 rounded-full font-bold shadow-lg transition-transform ${gameOverIndex === 0 ? 'scale-110 ring-4 ring-white' : ''} bg-[#4ecdc4] text-[#1a1a2e] hover:bg-[#3dbdb4]`}
+                                >
+                                    {gameState.isMultiplayer ? "REMATCH (SPACE)" : "FIGHT AGAIN (SPACE)"}
+                                </button>
+                            ) : (
+                                <div className="px-6 py-2 rounded-full font-bold shadow-lg bg-gray-600 text-gray-300 opacity-70 cursor-default">
+                                    Waiting for Host...
+                                </div>
+                            )}
                             <button 
+                                onMouseEnter={() => setGameOverIndex(1)}
                                 onClick={toggleReplay}
-                                className="mt-2 bg-[#e94560] text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-[#d43750] transition-transform hover:scale-105"
+                                className={`mt-2 bg-[#e94560] text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-[#d43750] transition-transform ${gameOverIndex === 1 ? 'scale-110 ring-4 ring-white' : ''}`}
                             >
                                 🎥 WATCH REPLAY
                             </button>
-                            {gameState.isMultiplayer && (
-                                <button onClick={() => window.location.reload()} className="text-sm text-gray-400 hover:text-white mt-4 underline">
-                                    DISCONNECT
-                                </button>
-                            )}
-                            <button onClick={() => setMenuState('main')} className="text-sm text-gray-400 hover:text-white mt-2 underline">
-                                MAIN MENU
+                            <button 
+                                onMouseEnter={() => setGameOverIndex(2)}
+                                onClick={() => gameState.isMultiplayer ? window.location.reload() : setMenuState('main')} 
+                                className={`mt-2 bg-[#16213e] border-2 border-[#4ecdc4] text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-[#1f2b4d] transition-transform ${gameOverIndex === 2 ? 'scale-110 ring-4 ring-white' : ''}`}
+                            >
+                                {gameState.isMultiplayer ? "DISCONNECT" : "MAIN MENU"}
                             </button>
                         </div>
                     </div>
