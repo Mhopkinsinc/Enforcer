@@ -1,4 +1,3 @@
-
 import { THEME_SONG_B64 } from './game/sfx/music';
 import { FULLRINK_SHEET_B64 } from './game/sprites/fullrinkbkg';
 import React, { useEffect, useRef, useState } from 'react';
@@ -58,8 +57,8 @@ const DEFAULT_GAME_STATE: GameState = {
   connectionStatus: 'disconnected',
   opponentDisconnected: false,
   sfxVolume: 0.15,
-  crtScanlines: true,
-  crtFlicker: true,
+  crtScanlines: false,
+  crtFlicker: false,
   crtVignette: true,
   gamepadConfig: {
       p1Index: null,
@@ -266,7 +265,7 @@ const App: React.FC = () => {
         const select = gp.buttons[0]?.pressed || gp.buttons[9]?.pressed;
         const back = gp.buttons[1]?.pressed;
 
-        if (gameState.showGameOver && !gameState.isReplaying) {
+        if (menuState === 'game' && gameState.showGameOver && !gameState.isReplaying) {
              let newIndex = gameOverIndex;
              if (up) {
                 newIndex = Math.max(0, gameOverIndex - 1);
