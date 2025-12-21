@@ -1,4 +1,3 @@
-
 import { Actor, Engine, SpriteSheet, Animation, AnimationStrategy, Keys, vec, Vector, Color, GraphicsGroup, Frame, Buttons, Axes } from "excalibur";
 import { SCALE, SPRITE_WIDTH, SPRITE_HEIGHT, ANIMATIONS, MOVE_SPEED, FRICTION, HIT_RANGE, HITBOX_WIDTH, FRAMES, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE, FINISHER_KNOCKBACK_FORCE, BOUNCE_FACTOR, STAR_WIDTH, STAR_HEIGHT, STANLEY_WIDTH, STANLEY_HEIGHT } from "../constants";
 import { AnimationState, PlayerSnapshot, SyncPayload, GamepadMapping } from "../types";
@@ -135,24 +134,24 @@ export class Player extends Actor {
         if (this.state === 'held' || this.state === 'falling' || this.state === 'down' || this.state === 'win') return;
 
         this.demoInternalTimer += delta;
-        const cycle = 12000;
+        const cycle = 14000;
         const t = this.demoInternalTimer % cycle;
 
-        // Perform actions based on time in cycle
-        if (t > 2000 && t < 3500) {
-            // Move Right
+        // Perform actions based on time in cycle to match instructional text
+        if (t >= 2000 && t < 4000) {
+            // HOLD D TO MOVE RIGHT
             this.vx += MOVE_SPEED;
-        } else if (t > 4000 && t < 5500) {
-            // Move Left
+        } else if (t >= 4000 && t < 6000) {
+            // HOLD A TO MOVE LEFT
             this.vx -= MOVE_SPEED;
         } else if (t >= 6000 && t < 6000 + delta) {
-            // High Punch trigger
+            // PRESS J FOR HIGH PUNCH
             this.setState('high_punch');
         } else if (t >= 8000 && t < 8000 + delta) {
-            // Low Punch trigger
-            this.setState('low_punch');
+            // PRESS K FOR LOW PUNCH
+            this.setState('low_punch');            
         } else if (t >= 10000 && t < 10000 + delta) {
-            // Grab trigger
+            // PRESS L TO HOLD
             this.setState('grab');
         }
     }

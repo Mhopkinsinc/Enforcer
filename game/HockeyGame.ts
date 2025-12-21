@@ -1,4 +1,3 @@
-
 import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite, Sound, SpriteFont, Text, ScreenElement } from "excalibur";
 import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE, FINISHER_KNOCKBACK_FORCE } from "../constants";
 import { Player } from "./Player";
@@ -111,8 +110,8 @@ export class HockeyGame extends Engine {
         const t = this.demoScriptTimer % cycle;
 
         if (t < 2000) return "READY?";
-        if (t < 4000) return "HOLD D TO MOVE RIGHT";
-        if (t < 6000) return "HOLD A TO MOVE LEFT";
+        if (t < 4000) return "HOLD D OR ] TO MOVE RIGHT";
+        if (t < 6000) return "HOLD A OR [ TO MOVE LEFT";
         if (t < 8000) return "PRESS J FOR HIGH PUNCH";
         if (t < 10000) return "PRESS K FOR LOW PUNCH";
         if (t < 12000) return "PRESS L TO HOLD";
@@ -339,7 +338,7 @@ export class HockeyGame extends Engine {
             }
             if (demoMode) {
                 this.player1.isDemo = true;
-                this.player2.isCPU = true; // Make opponent reactive but semi-idle
+                this.player2.isDemo = true;
             }
         }
 
