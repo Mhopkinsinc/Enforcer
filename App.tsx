@@ -648,7 +648,7 @@ const App: React.FC = () => {
                     <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-start pt-10 z-20">
                         {menuState === 'main' && (
                             <div className="absolute top-4 left-4 text-gray-500 text-[10px] font-mono opacity-50">
-                                v0.6 - Leaderboard
+                                v0.7 - Leaderboard
                             </div>
                         )}
                         {(menuState === 'main' || menuState === 'settings') && (
