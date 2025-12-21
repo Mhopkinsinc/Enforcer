@@ -1,4 +1,3 @@
-
 import { THEME_SONG_B64 } from './game/sfx/music';
 import { FULLRINK_SHEET_B64 } from './game/sprites/fullrinkbkg';
 import React, { useEffect, useRef, useState } from 'react';
@@ -200,6 +199,7 @@ const App: React.FC = () => {
               gamepadConfig: prev.gamepadConfig
             }));
         });
+        game.restartGame(false, true);
     });
 
     gameRef.current = game;
@@ -492,22 +492,29 @@ const App: React.FC = () => {
     if (menuState === 'main') {
       const tourComplete = localStorage.getItem('hockey_fight_tour_complete');
       if (!tourComplete && typeof (window as any).driver !== 'undefined') {
-        const driverObj = (window as any).driver.js.driver({
-          showProgress: true,
-          steps: [            
-            { element: '#tour-local-btn', popover: { title: 'Demo Mode', description: 'See an automated tutorial of the controls', side: "bottom", align: 'start' }},
-            { element: '#tour-cpu-btn', popover: { title: 'VS CPU', description: 'Play against the computer AI', side: "bottom", align: 'start' }},
-            { element: '#tour-online-section', popover: { title: 'Online Play', description: 'Host or Connect to a friends room', side: "bottom", align: 'start' }},
-            { element: '#tour-settings-btn', popover: { title: 'Settings', description: 'Joystick, Volume, CRT Filters', side: "top", align: 'start' }},
-            { element: '#tour-controls', popover: { title: 'Keyboard Controls', description: 'Default Keyboard Buttons', side: "top", align: 'start' }},
-          ],
-          onDestroyStarted: () => {
-            localStorage.setItem('hockey_fight_tour_complete', 'true');
-            driverObj.destroy();
-          }
-        });
+        // Use a short timeout to ensure the transform scale has finished calculating
+        // and the browser layout has stabilized, which helps Driver.js position highlights correctly.
+        const timer = setTimeout(() => {
+            const driverObj = (window as any).driver.js.driver({
+              showProgress: true,
+              animate: true,
+              steps: [            
+                { element: '#tour-local-btn', popover: { title: 'Demo Mode', description: 'See an automated tutorial of the controls', side: "bottom", align: 'start' }},
+                { element: '#tour-cpu-btn', popover: { title: 'VS CPU', description: 'Play against the computer AI', side: "bottom", align: 'start' }},
+                { element: '#tour-online-section', popover: { title: 'Online Play', description: 'Host or Connect to a friends room', side: "bottom", align: 'start' }},
+                { element: '#tour-settings-btn', popover: { title: 'Settings', description: 'Joystick, Volume, CRT Filters', side: "top", align: 'start' }},
+                { element: '#tour-controls', popover: { title: 'Keyboard Controls', description: 'Default Keyboard Buttons', side: "top", align: 'start' }},
+              ],
+              onDestroyStarted: () => {
+                localStorage.setItem('hockey_fight_tour_complete', 'true');
+                driverObj.destroy();
+              }
+            });
 
-        driverObj.drive();
+            driverObj.drive();
+        }, 300);
+
+        return () => clearTimeout(timer);
       }
     }
   }, [menuState]);
@@ -647,7 +654,7 @@ const App: React.FC = () => {
           <div className="arena-glass-glare"></div>
       </div>
 
-      <div className="tv-case" id="tour-tv-case" style={{ transform: `scale(${scale})` }}>
+      <div className="tv-case" id="tour-tv-case" style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}>
         <div className="tv-screen-bezel">
             <div className="tv-glass-container relative" style={{width: '800px', height: '400px'}}>
                 <canvas
@@ -659,7 +666,9 @@ const App: React.FC = () => {
 
                 {menuState === 'game' && gameState.isDemoMode && gameState.demoText && !gameState.showGameOver && (
                     <div className="absolute top-8 left-0 right-0 flex justify-center z-40">
-                        <PixelText text={gameState.demoText} scale={3} />
+                        <div className="bg-black/70 px-4 py-2 rounded-lg border-2 border-white/10 shadow-lg backdrop-blur-sm">
+                            <PixelText text={gameState.demoText} scale={3} />
+                        </div>
                     </div>
                 )}
 
