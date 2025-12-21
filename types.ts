@@ -40,6 +40,8 @@ export interface GameState {
     // Network Info
     isMultiplayer: boolean;
     isCPUGame?: boolean;
+    isDemoMode?: boolean;
+    demoText?: string;
     connectionStatus: 'disconnected' | 'connecting' | 'connected';
     roomId?: string;
     isHost?: boolean;

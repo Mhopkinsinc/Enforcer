@@ -9,6 +9,7 @@ export class Player extends Actor {
     public isPlayer1: boolean;
     public isLocal: boolean = true;
     public isCPU: boolean = false;
+    public isDemo: boolean = false;
     public health: number = 5;
     public maxHealth: number = 5;
     public state: AnimationState = 'idle'; 
@@ -27,6 +28,9 @@ export class Player extends Actor {
     private aiReactionDelay: number = 200; // Faster base reaction
     private aiDifficulty: number = 0.9; // Increased difficulty
     private aiComboing: boolean = false;
+
+    // Demo Timer for Scripted Actions
+    private demoInternalTimer: number = 0;
 
     constructor(x: number, y: number, isPlayer1: boolean) {
         super({
@@ -112,17 +116,45 @@ export class Player extends Actor {
         if (game.isReplaying) return; 
 
         if (this.isLocal) {
-            if (this.isCPU) {
+            if (this.isDemo) {
+                this.handleDemoInput(delta);
+            } else if (this.isCPU) {
                 this.handleAIInput(delta);
             } else {
                 this.handleInput(engine);
             }
             this.applyPhysics();
             this.checkCollisions();
-        }   
+        }
         
         this.updateAnimationLogic();
         this.updateGraphics();
+    }
+
+    private handleDemoInput(delta: number) {
+        if (this.state === 'held' || this.state === 'falling' || this.state === 'down' || this.state === 'win') return;
+
+        this.demoInternalTimer += delta;
+        const cycle = 12000;
+        const t = this.demoInternalTimer % cycle;
+
+        // Perform actions based on time in cycle
+        if (t > 2000 && t < 3500) {
+            // Move Right
+            this.vx += MOVE_SPEED;
+        } else if (t > 4000 && t < 5500) {
+            // Move Left
+            this.vx -= MOVE_SPEED;
+        } else if (t >= 6000 && t < 6000 + delta) {
+            // High Punch trigger
+            this.setState('high_punch');
+        } else if (t >= 8000 && t < 8000 + delta) {
+            // Low Punch trigger
+            this.setState('low_punch');
+        } else if (t >= 10000 && t < 10000 + delta) {
+            // Grab trigger
+            this.setState('grab');
+        }
     }
 
     private handleAIInput(delta: number) {

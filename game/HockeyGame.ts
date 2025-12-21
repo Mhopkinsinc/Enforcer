@@ -45,6 +45,8 @@ export class HockeyGame extends Engine {
 
     // Mode
     public isCPUGame: boolean = false;
+    public isDemoMode: boolean = false;
+    private demoScriptTimer: number = 0;
 
     // Multiplayer
     public networkManager: NetworkManager | null = null;
@@ -78,6 +80,10 @@ export class HockeyGame extends Engine {
 
                 this.cameraManager.update(evt.elapsed);
                 
+                if (this.isDemoMode && !this.isGameOver) {
+                    this.updateDemoScript(evt.elapsed);
+                }
+
                 if (this.networkManager) {
                     this.broadcastState();
                 }
@@ -85,6 +91,33 @@ export class HockeyGame extends Engine {
         }
         this.updateUI();
     };
+
+    private updateDemoScript(delta: number) {
+        this.demoScriptTimer += delta;
+        const cycle = 14000; // 14 second loop
+        const t = this.demoScriptTimer % cycle;
+
+        // Reset demo health if they get too low to keep it running
+        if (this.player1 && this.player1.health < 2) this.player1.health = 5;
+        if (this.player2 && this.player2.health < 2) this.player2.health = 5;
+
+        // The Player component will handle actual movement based on the isDemo flag
+        // Here we just manage the text state
+    }
+
+    private getDemoText(): string {
+        if (!this.isDemoMode) return "";
+        const cycle = 14000;
+        const t = this.demoScriptTimer % cycle;
+
+        if (t < 2000) return "READY?";
+        if (t < 4000) return "HOLD D TO MOVE RIGHT";
+        if (t < 6000) return "HOLD A TO MOVE LEFT";
+        if (t < 8000) return "PRESS J FOR HIGH PUNCH";
+        if (t < 10000) return "PRESS K FOR LOW PUNCH";
+        if (t < 12000) return "PRESS L TO HOLD";
+        return "ESC TO EXIT";
+    }
 
     private onGlovesDropped = (evt: any) => {
         const gloves = new Gloves(evt.x, evt.y, evt.isPlayer1);
@@ -153,6 +186,7 @@ export class HockeyGame extends Engine {
         this.networkManager = manager;
         this.isHost = isHost;
         this.isCPUGame = false;
+        this.isDemoMode = false;
         this.opponentDisconnected = false;
 
         this.networkManager.onMessage = (msg) => {
@@ -221,8 +255,8 @@ export class HockeyGame extends Engine {
         });
     }
 
-    restartGame(cpuMode: boolean = false) {
-        this.reset(cpuMode);
+    restartGame(cpuMode: boolean = false, demoMode: boolean = false) {
+        this.reset(cpuMode, demoMode);
         if (this.networkManager) {
             this.networkManager.send({ type: 'RESTART', payload: {} });
         }
@@ -232,11 +266,13 @@ export class HockeyGame extends Engine {
         this.cameraManager.shake(duration, strength);
     }
 
-    public reset(cpuMode: boolean) {
+    public reset(cpuMode: boolean, demoMode: boolean = false) {
         const scene = (this as any).currentScene as Scene;
         scene.clear();
         (this as any).timescale = 1.0;
         this.isCPUGame = cpuMode;
+        this.isDemoMode = demoMode;
+        this.demoScriptTimer = 0;
 
         const rink = new Rink(0, 0);
         scene.add(rink);
@@ -300,6 +336,10 @@ export class HockeyGame extends Engine {
             this.player2.isLocal = true;
             if (cpuMode) {
                 this.player2.isCPU = true;
+            }
+            if (demoMode) {
+                this.player1.isDemo = true;
+                this.player2.isCPU = true; // Make opponent reactive but semi-idle
             }
         }
 
@@ -394,6 +434,8 @@ export class HockeyGame extends Engine {
                 replaySpeed: this.replayManager.playbackSpeed,
                 isMultiplayer: !!this.networkManager,
                 isCPUGame: this.isCPUGame,
+                isDemoMode: this.isDemoMode,
+                demoText: this.getDemoText(),
                 connectionStatus: this.networkManager ? 'connected' : 'disconnected',
                 roomId: this.networkManager ? '...' : undefined,
                 isHost: this.isHost,

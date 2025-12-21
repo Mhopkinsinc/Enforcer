@@ -1,3 +1,4 @@
+
 import { THEME_SONG_B64 } from './game/sfx/music';
 import { FULLRINK_SHEET_B64 } from './game/sprites/fullrinkbkg';
 import React, { useEffect, useRef, useState } from 'react';
@@ -54,6 +55,8 @@ const DEFAULT_GAME_STATE: GameState = {
   replaySpeed: 1,
   isMultiplayer: false,
   isCPUGame: false,
+  isDemoMode: false,
+  demoText: "",
   connectionStatus: 'disconnected',
   opponentDisconnected: false,
   sfxVolume: 0.15,
@@ -106,7 +109,7 @@ const App: React.FC = () => {
   const [menuState, setMenuState] = useState<'main' | 'host' | 'join' | 'game' | 'settings' | 'leaderboard'>('main');
   const [mainMenuIndex, setMainMenuIndex] = useState(0); 
   // Main Menu Index Mapping:
-  // 0: Local, 1: CPU
+  // 0: Local/Demo, 1: CPU
   // 2: Host, 3: Join
   // 4: Leaderboard
   // 5: Settings
@@ -204,8 +207,18 @@ const App: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
         if (game.opponentDisconnected) return;
 
+        // Exit Demo Mode with Escape
+        if (game.isDemoMode && e.key === 'Escape') {
+            setMenuState('main');
+            if (musicRef.current) {
+                musicRef.current.pause();
+                musicRef.current.currentTime = 0;
+            }
+            return;
+        }
+
         if (!game.isReplaying && game.isGameOver && (e.key === ' ' || e.key === 'Enter')) {
-            game.restartGame(game.isCPUGame);
+            game.restartGame(game.isCPUGame, game.isDemoMode);
             playBase64Mp3();
         }
     };
@@ -286,7 +299,7 @@ const App: React.FC = () => {
                  lastInputTime.current = now;
                  if (gameOverIndex === 0) { // Rematch
                      if (gameRef.current) {
-                        gameRef.current.restartGame(gameRef.current.isCPUGame);
+                        gameRef.current.restartGame(gameRef.current.isCPUGame, gameRef.current.isDemoMode);
                         playBase64Mp3();
                      }
                  } else if (gameOverIndex === 1) { // Watch Replay
@@ -336,7 +349,7 @@ const App: React.FC = () => {
             if (actionTriggered) {
                 lastInputTime.current = now;
                 switch(mainMenuIndex) {
-                    case 0: startLocalGame(); break;
+                    case 0: startDemoMode(); break;
                     case 1: startCpuGame(); break;
                     case 2: handleHost(); break;
                     case 3: setMenuState('join'); break;
@@ -482,7 +495,7 @@ const App: React.FC = () => {
         const driverObj = (window as any).driver.js.driver({
           showProgress: true,
           steps: [            
-            { element: '#tour-local-btn', popover: { title: 'Local Play', description: '2 Player Local Play, on the same computer', side: "bottom", align: 'start' }},
+            { element: '#tour-local-btn', popover: { title: 'Demo Mode', description: 'See an automated tutorial of the controls', side: "bottom", align: 'start' }},
             { element: '#tour-cpu-btn', popover: { title: 'VS CPU', description: 'Play against the computer AI', side: "bottom", align: 'start' }},
             { element: '#tour-online-section', popover: { title: 'Online Play', description: 'Host or Connect to a friends room', side: "bottom", align: 'start' }},
             { element: '#tour-settings-btn', popover: { title: 'Settings', description: 'Joystick, Volume, CRT Filters', side: "top", align: 'start' }},
@@ -507,9 +520,9 @@ const App: React.FC = () => {
     }
   }, [gameState.gameOver, gameState.opponentDisconnected]);
 
-  const startLocalGame = () => {
+  const startDemoMode = () => {
       setMenuState('game');
-      if (gameRef.current) gameRef.current.restartGame(false);
+      if (gameRef.current) gameRef.current.restartGame(false, true);
       playBase64Mp3();
   };
 
@@ -644,11 +657,17 @@ const App: React.FC = () => {
                     onContextMenu={(e) => e.preventDefault()}
                 />
 
+                {menuState === 'game' && gameState.isDemoMode && gameState.demoText && !gameState.showGameOver && (
+                    <div className="absolute top-8 left-0 right-0 flex justify-center z-40">
+                        <PixelText text={gameState.demoText} scale={3} />
+                    </div>
+                )}
+
                 {menuState !== 'game' && (
                     <div className="absolute inset-0 bg-[#1a1a2e]/95 flex flex-col items-center justify-start pt-10 z-20">
                         {menuState === 'main' && (
                             <div className="absolute top-4 left-4 text-gray-500 text-[10px] font-mono opacity-50">
-                                v0.7 - Leaderboard
+                                v0.7 - Demo Mode
                             </div>
                         )}
                         {(menuState === 'main' || menuState === 'settings') && (
@@ -659,11 +678,11 @@ const App: React.FC = () => {
                                 <div className="flex gap-4 w-full">
                                     <button 
                                       id="tour-local-btn" 
-                                      onClick={startLocalGame}
+                                      onClick={startDemoMode}
                                       onMouseEnter={() => setMainMenuIndex(0)}
                                       className={`flex-1 bg-[#4ecdc4] text-[#1a1a2e] py-2 rounded-lg font-bold text-lg hover:bg-[#3dbdb4] transition shadow-[0_0_15px_rgba(78,205,196,0.4)] ${mainMenuIndex === 0 && menuState === 'main' ? 'ring-4 ring-white scale-105' : ''}`}
                                     >
-                                        LOCAL 2P
+                                        DEMO MODE
                                     </button>
                                     <button 
                                       id="tour-cpu-btn" 
@@ -991,7 +1010,7 @@ const App: React.FC = () => {
                             {(!gameState.isMultiplayer || gameState.isHost) ? (
                                 <button
                                     onMouseEnter={() => setGameOverIndex(0)}
-                                    onClick={() => { if(gameRef.current) { gameRef.current.restartGame(gameRef.current.isCPUGame); playBase64Mp3(); }}}
+                                    onClick={() => { if(gameRef.current) { gameRef.current.restartGame(gameRef.current.isCPUGame, gameRef.current.isDemoMode); playBase64Mp3(); }}}
                                     className={`px-6 py-2 rounded-full font-bold shadow-lg transition-transform ${gameOverIndex === 0 ? 'scale-110 ring-4 ring-white' : ''} bg-[#4ecdc4] text-[#1a1a2e] hover:bg-[#3dbdb4]`}
                                 >
                                     {gameState.isMultiplayer ? "REMATCH (SPACE)" : "FIGHT AGAIN (SPACE)"}
