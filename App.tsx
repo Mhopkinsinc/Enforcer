@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { Engine, DisplayMode, Color } from 'excalibur';
 import { THEME_SONG_B64 } from './game/sfx/music';
@@ -56,7 +57,7 @@ const App: React.FC = () => {
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
 
   const [menuState, setMenuState] = useState<'main' | 'host' | 'join' | 'game' | 'settings' | 'leaderboard'>('main');
-  const [mainMenuIndex, setMainMenuIndex] = useState(0); 
+  const [mainMenuIndex, setMainMenuIndex] = useState(-1); 
   const [gameOverIndex, setGameOverIndex] = useState(0);
   const [replayControlIndex, setReplayControlIndex] = useState(2);
   const [settingsIndex, setSettingsIndex] = useState(0); 
@@ -189,34 +190,41 @@ const App: React.FC = () => {
              }
              inputFound = up || down || select;
         } else if (menuState === 'main') {
-            if (up) {
-                if (mainMenuIndex === 2) setMainMenuIndex(0);
-                else if (mainMenuIndex === 3) setMainMenuIndex(1);
-                else if (mainMenuIndex === 4) setMainMenuIndex(2);
-                else if (mainMenuIndex === 5) setMainMenuIndex(4);
-            } else if (down) {
-                if (mainMenuIndex === 0) setMainMenuIndex(2);
-                else if (mainMenuIndex === 1) setMainMenuIndex(3);
-                else if (mainMenuIndex === 2 || mainMenuIndex === 3) setMainMenuIndex(4);
-                else if (mainMenuIndex === 4) setMainMenuIndex(5);
-            } else if (left) {
-                if (mainMenuIndex === 1) setMainMenuIndex(0);
-                else if (mainMenuIndex === 3) setMainMenuIndex(2);
-            } else if (right) {
-                if (mainMenuIndex === 0) setMainMenuIndex(1);
-                else if (mainMenuIndex === 2) setMainMenuIndex(3);
-            }
-            if (select) {
-                switch(mainMenuIndex) {
-                    case 0: startDemoMode(); break;
-                    case 1: startCpuGame(); break;
-                    case 2: handleHost(); break;
-                    case 3: setMenuState('join'); break;
-                    case 4: setMenuState('leaderboard'); break;
-                    case 5: setMenuState('settings'); setSettingsIndex(0); break;
+            if (up || down || left || right || select) {
+                if (mainMenuIndex === -1) {
+                    setMainMenuIndex(0);
+                    inputFound = true;
+                } else {
+                    if (up) {
+                        if (mainMenuIndex === 2) setMainMenuIndex(0);
+                        else if (mainMenuIndex === 3) setMainMenuIndex(1);
+                        else if (mainMenuIndex === 4) setMainMenuIndex(2);
+                        else if (mainMenuIndex === 5) setMainMenuIndex(4);
+                    } else if (down) {
+                        if (mainMenuIndex === 0) setMainMenuIndex(2);
+                        else if (mainMenuIndex === 1) setMainMenuIndex(3);
+                        else if (mainMenuIndex === 2 || mainMenuIndex === 3) setMainMenuIndex(4);
+                        else if (mainMenuIndex === 4) setMainMenuIndex(5);
+                    } else if (left) {
+                        if (mainMenuIndex === 1) setMainMenuIndex(0);
+                        else if (mainMenuIndex === 3) setMainMenuIndex(2);
+                    } else if (right) {
+                        if (mainMenuIndex === 0) setMainMenuIndex(1);
+                        else if (mainMenuIndex === 2) setMainMenuIndex(3);
+                    }
+                    if (select) {
+                        switch(mainMenuIndex) {
+                            case 0: startDemoMode(); break;
+                            case 1: startCpuGame(); break;
+                            case 2: handleHost(); break;
+                            case 3: setMenuState('join'); break;
+                            case 4: setMenuState('leaderboard'); break;
+                            case 5: setMenuState('settings'); setSettingsIndex(0); break;
+                        }
+                    }
+                    inputFound = up || down || left || right || select;
                 }
             }
-            inputFound = up || down || left || right || select;
         } else if (menuState === 'settings' && !remapping) {
             const maxIndex = settingsTab === 'audio_video' ? 7 : 9;
             if (up) setSettingsIndex(prev => Math.max(0, prev - 1));
