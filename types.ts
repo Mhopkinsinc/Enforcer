@@ -56,6 +56,7 @@ export interface GameState {
     gamepadConfig: GamepadSettings;
     // Player Identity
     playerId?: string;
+    nickname: string;
 }
 
 export interface PlayerSnapshot {

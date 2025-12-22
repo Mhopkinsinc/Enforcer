@@ -1,3 +1,4 @@
+
 import { THEME_SONG_B64 } from './game/sfx/music';
 import { FULLRINK_SHEET_B64 } from './game/sprites/fullrinkbkg';
 import React, { useEffect, useRef, useState } from 'react';
@@ -63,6 +64,7 @@ const DEFAULT_GAME_STATE: GameState = {
   crtScanlines: false,
   crtFlicker: false,
   crtVignette: true,
+  nickname: 'PLAYER',
   gamepadConfig: {
       p1Index: null,
       p2Index: null,
@@ -91,7 +93,8 @@ const App: React.FC = () => {
           crtScanlines: parsed.crtScanlines,
           crtFlicker: parsed.crtFlicker,
           crtVignette: parsed.crtVignette,
-          gamepadConfig: parsed.gamepadConfig
+          gamepadConfig: parsed.gamepadConfig,
+          nickname: parsed.nickname || 'PLAYER'
         };
       }
     } catch (e) {
@@ -186,10 +189,11 @@ const App: React.FC = () => {
       crtScanlines: gameState.crtScanlines,
       crtFlicker: gameState.crtFlicker,
       crtVignette: gameState.crtVignette,
-      gamepadConfig: gameState.gamepadConfig
+      gamepadConfig: gameState.gamepadConfig,
+      nickname: gameState.nickname
     };
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settingsToSave));
-  }, [gameState.sfxVolume, gameState.crtScanlines, gameState.crtFlicker, gameState.crtVignette, gameState.gamepadConfig]);
+  }, [gameState.sfxVolume, gameState.crtScanlines, gameState.crtFlicker, gameState.crtVignette, gameState.gamepadConfig, gameState.nickname]);
 
   // Initialize Engine
   useEffect(() => {
@@ -222,7 +226,8 @@ const App: React.FC = () => {
               crtFlicker: prev.crtFlicker,
               crtVignette: prev.crtVignette,
               gamepadConfig: prev.gamepadConfig,
-              playerId: prev.playerId // Persist player ID
+              playerId: prev.playerId, // Persist player ID
+              nickname: prev.nickname // Persist nickname
             }));
         });
         game.restartGame(false, true);
@@ -764,27 +769,52 @@ const App: React.FC = () => {
 
                         {menuState === 'host' && (
                             <div className="flex flex-col items-center justify-center h-[280px] w-full gap-4 text-center p-6">
-                                <h2 className="text-2xl text-[#4ecdc4] font-bold">WAITING FOR PLAYER...</h2>
+                                <h2 className="text-2xl text-[#4ecdc4] font-bold mb-2">WAITING FOR PLAYER...</h2>
+                                <div className="flex flex-col gap-1 mb-2">
+                                    <label className="text-[#4ecdc4] text-[10px] font-bold uppercase tracking-wider">YOUR NICKNAME</label>
+                                    <input
+                                        type="text"
+                                        className="bg-[#16213e] border border-gray-600 p-2 rounded text-white text-center font-mono focus:border-[#4ecdc4] outline-none w-[200px]"
+                                        value={gameState.nickname}
+                                        onChange={(e) => setGameState(prev => ({...prev, nickname: e.target.value}))}
+                                        maxLength={12}
+                                        placeholder="PLAYER"
+                                    />
+                                </div>
                                 <div className="bg-[#16213e] p-4 rounded border border-gray-600">
                                     <p className="text-gray-400 text-sm mb-1">SHARE THIS ROOM ID:</p>
                                     <p className="text-2xl font-mono text-white tracking-widest select-all">{roomId}</p>
                                 </div>
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mt-4"></div>
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mt-2"></div>
                                 <button onClick={() => setMenuState('main')} className="text-gray-400 hover:text-white mt-4 underline">Cancel</button>
                             </div>
                         )}
 
                         {menuState === 'join' && (
                             <div className="flex flex-col items-center justify-center h-[280px] w-full gap-4">
-                                <h2 className="text-2xl text-[#e94560] font-bold">JOIN GAME</h2>
-                                <input 
-                                    type="text" 
-                                    placeholder="ENTER ROOM ID"
-                                    className="bg-[#16213e] border border-gray-600 p-3 rounded text-white text-center font-mono uppercase focus:border-[#4ecdc4] outline-none"
-                                    value={joinId}
-                                    onChange={(e) => setJoinId(e.target.value)}
-                                />
-                                <div className="flex gap-4">
+                                <h2 className="text-2xl text-[#e94560] font-bold mb-2">JOIN GAME</h2>
+                                <div className="flex flex-col gap-1 w-[200px]">
+                                    <label className="text-[#e94560] text-[10px] font-bold uppercase tracking-wider text-center">YOUR NICKNAME</label>
+                                    <input
+                                        type="text"
+                                        className="bg-[#16213e] border border-gray-600 p-2 rounded text-white text-center font-mono focus:border-[#e94560] outline-none w-full"
+                                        value={gameState.nickname}
+                                        onChange={(e) => setGameState(prev => ({...prev, nickname: e.target.value}))}
+                                        maxLength={12}
+                                        placeholder="PLAYER"
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1 w-[200px]">
+                                    <label className="text-gray-400 text-[10px] font-bold uppercase tracking-wider text-center">ROOM ID</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="ENTER ROOM ID"
+                                        className="bg-[#16213e] border border-gray-600 p-3 rounded text-white text-center font-mono uppercase focus:border-[#4ecdc4] outline-none w-full"
+                                        value={joinId}
+                                        onChange={(e) => setJoinId(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex gap-4 mt-2">
                                     <button onClick={() => setMenuState('main')} className="text-gray-400 hover:text-white">Back</button>
                                     <button onClick={handleJoin} className="bg-[#4ecdc4] text-[#1a1a2e] px-6 py-2 rounded font-bold hover:bg-[#3dbdb4]">
                                         CONNECT

@@ -30,7 +30,7 @@ export interface GameResources {
 export class HockeyGame extends Engine {
     public player1?: Player;
     public player2?: Player;
-    private uiCallback?: (state: GameState) => void;
+    private uiCallback?: (state: Partial<GameState>) => void;
     public isGameOver: boolean = false;
     public winner: 'PLAYER 1' | 'PLAYER 2' | null = null;
     public resources: GameResources;
@@ -160,7 +160,7 @@ export class HockeyGame extends Engine {
         });
     }
 
-    setupGame(uiCallback: (state: GameState) => void) {
+    setupGame(uiCallback: (state: Partial<GameState>) => void) {
         this.uiCallback = uiCallback;
         this.updateUI();
     }
