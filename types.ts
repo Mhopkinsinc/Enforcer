@@ -54,6 +54,8 @@ export interface GameState {
     crtVignette?: boolean;
     // Controls
     gamepadConfig: GamepadSettings;
+    // Player Identity
+    playerId?: string;
 }
 
 export interface PlayerSnapshot {

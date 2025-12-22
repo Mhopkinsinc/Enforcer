@@ -1,3 +1,4 @@
+
 import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite, Sound, SpriteFont, Text, ScreenElement } from "excalibur";
 import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE, FINISHER_KNOCKBACK_FORCE } from "../constants";
 import { Player } from "./Player";
@@ -70,7 +71,11 @@ export class HockeyGame extends Engine {
             this.replayManager.update();
         } else {
             if (this.player1 && this.player2) {
-                this.replayManager.recordFrame();
+                // Only record if not in demo mode
+                if (!this.isDemoMode) {
+                    this.replayManager.recordFrame();
+                }
+                
                 this.checkGameOver();
                 
                 if (this.isGameOver && this.winner && (this as any).timescale >= 1.0) {
@@ -177,7 +182,11 @@ export class HockeyGame extends Engine {
             } else {
                 this.resources.PunchLowSound.play(vol);
             }
-            this.replayManager.recordSound(type);
+            
+            // Only record sound if not in demo mode
+            if (!this.isDemoMode) {
+                this.replayManager.recordSound(type);
+            }
         }
     }
 

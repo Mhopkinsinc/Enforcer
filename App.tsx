@@ -12,6 +12,7 @@ declare const driver: any;
 
 const ALPHABET = " !\"#©%&'()✓+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~■";
 const SETTINGS_STORAGE_KEY = 'hockey_fight_settings';
+const PLAYER_ID_KEY = 'hockey_fight_player_id';
 
 const PixelText: React.FC<{ text: string; scale?: number }> = ({ text, scale = 3 }) => {
   return (
@@ -79,24 +80,48 @@ const App: React.FC = () => {
 
   // Initialize State from LocalStorage if available
   const [gameState, setGameState] = useState<GameState>(() => {
+    let savedSettings = {};
     try {
       const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Merge saved settings with default state structure
-        return {
-          ...DEFAULT_GAME_STATE,
-          sfxVolume: parsed.sfxVolume ?? DEFAULT_GAME_STATE.sfxVolume,
-          crtScanlines: parsed.crtScanlines ?? DEFAULT_GAME_STATE.crtScanlines,
-          crtFlicker: parsed.crtFlicker ?? DEFAULT_GAME_STATE.crtFlicker,
-          crtVignette: parsed.crtVignette ?? DEFAULT_GAME_STATE.crtVignette,
-          gamepadConfig: parsed.gamepadConfig ?? DEFAULT_GAME_STATE.gamepadConfig
+        // Extract saved settings
+        savedSettings = {
+          sfxVolume: parsed.sfxVolume,
+          crtScanlines: parsed.crtScanlines,
+          crtFlicker: parsed.crtFlicker,
+          crtVignette: parsed.crtVignette,
+          gamepadConfig: parsed.gamepadConfig
         };
       }
     } catch (e) {
       console.error("Failed to load settings:", e);
     }
-    return DEFAULT_GAME_STATE;
+
+    // Check/Create Player ID
+    let playerId = localStorage.getItem(PLAYER_ID_KEY);
+    if (!playerId) {
+        try {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                playerId = crypto.randomUUID();
+            } else {
+                // Fallback UUID v4 generator
+                playerId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            }
+        } catch (e) {
+            playerId = 'player-' + Date.now().toString(36) + Math.random().toString(36).substring(2);
+        }
+        localStorage.setItem(PLAYER_ID_KEY, playerId);
+    }
+
+    return {
+      ...DEFAULT_GAME_STATE,
+      ...savedSettings,
+      playerId: playerId
+    };
   });
   
   // Ref to hold latest gameState for polling loops without triggering re-effects
@@ -196,7 +221,8 @@ const App: React.FC = () => {
               crtScanlines: prev.crtScanlines,
               crtFlicker: prev.crtFlicker,
               crtVignette: prev.crtVignette,
-              gamepadConfig: prev.gamepadConfig
+              gamepadConfig: prev.gamepadConfig,
+              playerId: prev.playerId // Persist player ID
             }));
         });
         game.restartGame(false, true);
