@@ -1,4 +1,3 @@
-
 import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite, Sound, SpriteFont, Text, ScreenElement } from "excalibur";
 import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE, FINISHER_KNOCKBACK_FORCE } from "../constants";
 import { Player } from "./Player";
@@ -97,9 +96,19 @@ export class HockeyGame extends Engine {
     };
 
     private updateDemoScript(delta: number) {
-        this.demoScriptTimer += delta;
         const cycle = 14000; // 14 second loop
+        const prevT = this.demoScriptTimer % cycle;
+        this.demoScriptTimer += delta;
         const t = this.demoScriptTimer % cycle;
+
+        // Clear blood particles when the demo cycle restarts to prevent memory leak
+        if (t < prevT) {
+            this.currentScene.actors.forEach(actor => {
+                if (actor instanceof BloodParticle) {
+                    actor.kill();
+                }
+            });
+        }
 
         // Reset demo health if they get too low to keep it running
         if (this.player1 && this.player1.health < 2) this.player1.health = 5;

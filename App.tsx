@@ -15,6 +15,19 @@ const ALPHABET = " !\"#©%&'()✓+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXY
 const SETTINGS_STORAGE_KEY = 'hockey_fight_settings';
 const PLAYER_ID_KEY = 'hockey_fight_player_id';
 
+const MOCK_LEADERBOARD = [
+  { nickname: "WAYNE_G", wins: 894, losses: 12 },
+  { nickname: "MARIO_L", wins: 690, losses: 85 },
+  { nickname: "GORDIE_H", wins: 550, losses: 145 },
+  { nickname: "BOBBY_O", wins: 412, losses: 180 },
+  { nickname: "JAROMIR_J", wins: 389, losses: 210 },
+  { nickname: "SID_KID", wins: 256, losses: 98 },
+  { nickname: "OVI_8", wins: 198, losses: 112 },
+  { nickname: "GOALIE_33", wins: 145, losses: 85 },
+  { nickname: "ENFORCER_X", wins: 45, losses: 32 },
+  { nickname: "ZAMBONI_DRVR", wins: 12, losses: 45 },
+];
+
 const PixelText: React.FC<{ text: string; scale?: number }> = ({ text, scale = 3 }) => {
   return (
     <div className="flex flex-row gap-0">
@@ -146,6 +159,14 @@ const App: React.FC = () => {
   // 0: Rematch
   // 1: Watch Replay
   // 2: Main Menu
+
+  const [replayControlIndex, setReplayControlIndex] = useState(2);
+  // Replay Control Index Mapping:
+  // 0: Rewind (-2)
+  // 1: Pause (0)
+  // 2: Play (1)
+  // 3: Fast Forward (2)
+  // 4: Exit Replay
 
   const [settingsIndex, setSettingsIndex] = useState(0); 
   const [roomId, setRoomId] = useState('');
@@ -281,11 +302,10 @@ const App: React.FC = () => {
       updateGamepadAssignment(player, val === -1 ? 'kb' : val.toString());
   };
 
-  // Poll Gamepads for Navigation (Main & Settings & Game Over)
+  // Poll Gamepads for Navigation (Main & Settings & Game Over & Replay)
   useEffect(() => {
-    // Only block gamepad navigation if we are in game AND not showing game over.
-    // If we are in game AND showing game over, we want navigation.
-    if ((menuState === 'game' && !gameState.showGameOver) || menuState === 'host' || menuState === 'join') return;
+    // Block gamepad navigation only during active unpaused/non-replaying gameplay
+    if ((menuState === 'game' && !gameState.showGameOver && !gameState.isReplaying) || menuState === 'host' || menuState === 'join') return;
 
     const interval = setInterval(() => {
       const now = Date.now();
@@ -309,7 +329,35 @@ const App: React.FC = () => {
         const select = gp.buttons[0]?.pressed || gp.buttons[9]?.pressed;
         const back = gp.buttons[1]?.pressed;
 
-        if (menuState === 'game' && gameState.showGameOver && !gameState.isReplaying) {
+        if (menuState === 'game' && gameState.isReplaying) {
+            let newIndex = replayControlIndex;
+            if (left) {
+               newIndex = Math.max(0, replayControlIndex - 1);
+               inputFound = true;
+            } else if (right) {
+               newIndex = Math.min(4, replayControlIndex + 1);
+               inputFound = true;
+            }
+            
+            if (inputFound && newIndex !== replayControlIndex) setReplayControlIndex(newIndex);
+            
+            if (select) {
+                actionTriggered = true;
+                inputFound = true;
+            }
+
+            if (actionTriggered) {
+                lastInputTime.current = now;
+                switch(replayControlIndex) {
+                    case 0: handleSpeed(-2); break;
+                    case 1: handleSpeed(0); break;
+                    case 2: handleSpeed(1); break;
+                    case 3: handleSpeed(2); break;
+                    case 4: toggleReplay(); break;
+                }
+                return;
+            }
+        } else if (menuState === 'game' && gameState.showGameOver && !gameState.isReplaying) {
              let newIndex = gameOverIndex;
              if (up) {
                 newIndex = Math.max(0, gameOverIndex - 1);
@@ -474,7 +522,7 @@ const App: React.FC = () => {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [menuState, mainMenuIndex, settingsIndex, settingsTab, remapping, gameOverIndex, gameState.showGameOver, gameState.isReplaying]); 
+  }, [menuState, mainMenuIndex, settingsIndex, settingsTab, remapping, gameOverIndex, replayControlIndex, gameState.showGameOver, gameState.isReplaying]); 
 
   // Poll Gamepads for Settings Menu Remapping
   useEffect(() => {
@@ -824,13 +872,43 @@ const App: React.FC = () => {
                         )}
 
                         {menuState === 'leaderboard' && (
-                            <div className="flex flex-col items-center justify-center h-[280px] w-full gap-4 p-6 text-center">
-                                <h2 className="text-2xl text-[#feca57] font-bold mb-4">ONLINE LEADERBOARD</h2>
-                                <div className="bg-[#16213e] p-8 rounded border border-gray-600 w-full max-w-[400px] flex items-center justify-center min-h-[150px]">
-                                    <p className="text-gray-400 text-lg animate-pulse tracking-widest">COMING SOON</p>
+                            <div className="flex flex-col items-center w-full h-full p-8 pt-2">
+                                <div className="mb-4 drop-shadow-[0_0_8px_rgba(254,202,87,0.8)]">
+                                     <PixelText text="LEADERBOARD" scale={4} />
                                 </div>
-                                <button onClick={() => setMenuState('main')} className="text-gray-400 hover:text-white mt-4 underline">
-                                    BACK
+                                
+                                <div className="w-full max-w-[600px] flex-1 overflow-y-auto bg-[#16213e] border-2 border-[#4ecdc4] rounded-lg shadow-[0_0_15px_rgba(78,205,196,0.2)]">
+                                    <table className="w-full text-left border-collapse table-auto">
+                                        <thead className="bg-[#0f172a] text-[#4ecdc4] sticky top-0 z-10 shadow-md">
+                                            <tr>
+                                                <th className="p-3 text-xs font-bold tracking-wider border-b-2 border-[#4ecdc4]/30">RANK</th>
+                                                <th className="p-3 text-xs font-bold tracking-wider border-b-2 border-[#4ecdc4]/30">PLAYER</th>
+                                                <th className="p-3 text-xs font-bold tracking-wider border-b-2 border-[#4ecdc4]/30 text-center">WINS</th>
+                                                <th className="p-3 text-xs font-bold tracking-wider border-b-2 border-[#4ecdc4]/30 text-center">LOSSES</th>
+                                                <th className="p-3 text-xs font-bold tracking-wider border-b-2 border-[#4ecdc4]/30 text-right">WIN %</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="text-gray-300 text-xs font-mono">
+                                            {MOCK_LEADERBOARD.map((entry, index) => {
+                                                const total = entry.wins + entry.losses;
+                                                const winRate = total > 0 ? ((entry.wins / total) * 100).toFixed(0) : "0";
+                                                return (
+                                                    <tr key={index} className="even:bg-[#1a233a] hover:bg-[#252f4a] transition-colors border-b border-gray-800/50 last:border-0">
+                                                        <td className="p-2 pl-4 font-bold text-white/70">
+                                                            {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                                                        </td>
+                                                        <td className="p-2 font-bold text-[#feca57] tracking-wide">{entry.nickname}</td>
+                                                        <td className="p-2 text-center text-green-400">{entry.wins}</td>
+                                                        <td className="p-2 text-center text-red-400">{entry.losses}</td>
+                                                        <td className="p-2 pr-4 text-right text-white">{winRate}%</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button onClick={() => setMenuState('main')} className="text-gray-500 hover:text-white mt-4 text-xs font-bold tracking-widest hover:underline uppercase">
+                                    MAIN MENU
                                 </button>
                             </div>
                         )}
@@ -1004,30 +1082,32 @@ const App: React.FC = () => {
                             </div>
                         )}
 
-                        <div className="absolute bottom-6 left-6 right-6 flex gap-6 z-30" id="tour-controls">
-                            <div className="flex-1 bg-[#1a1a2e] border border-[#2a2a4e] p-3 rounded-xl shadow-2xl flex gap-3 items-start">
-                                <div className="w-6 h-6 rounded-full bg-[#4ecdc4]/20 flex items-center justify-center text-[#4ecdc4] font-bold text-xs border border-[#4ecdc4]/40">i</div>
-                                <div className="flex flex-col">
-                                    <span className="text-[#4ecdc4] font-bold text-[10px] uppercase tracking-widest mb-1">Player 1 Controls</span>
-                                    <ul className="text-gray-300 text-[11px] space-y-0.5 leading-tight">
-                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> WASD / Stick</li>
-                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> J / K / L or Buttons</li>
-                                    </ul>
+                        {menuState !== 'leaderboard' && (
+                            <div className="absolute bottom-6 left-6 right-6 flex gap-6 z-30" id="tour-controls">
+                                <div className="flex-1 bg-[#1a1a2e] border border-[#2a2a4e] p-3 rounded-xl shadow-2xl flex gap-3 items-start">
+                                    <div className="w-6 h-6 rounded-full bg-[#4ecdc4]/20 flex items-center justify-center text-[#4ecdc4] font-bold text-xs border border-[#4ecdc4]/40">i</div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[#4ecdc4] font-bold text-[10px] uppercase tracking-widest mb-1">Player 1 Controls</span>
+                                        <ul className="text-gray-300 text-[11px] space-y-0.5 leading-tight">
+                                            <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> WASD / Stick</li>
+                                            <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> J / K / L or Buttons</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div className={`flex-1 bg-[#1a1a2e] border ${gameState.isCPUGame ? 'border-[#4ecdc4]' : 'border-[#2a2a4e]'} p-3 rounded-xl shadow-2xl flex gap-3 items-start`}>
+                                    <div className={`w-6 h-6 rounded-full ${gameState.isCPUGame ? 'bg-[#4ecdc4]/20 text-[#4ecdc4] border-[#4ecdc4]/40' : 'bg-[#e94560]/20 text-[#e94560] border-[#e94560]/40'} flex items-center justify-center font-bold text-xs border`}>i</div>
+                                    <div className="flex flex-col">
+                                        <span className={`${gameState.isCPUGame ? 'text-[#4ecdc4]' : 'text-[#e94560]'} font-bold text-[10px] uppercase tracking-widest mb-1`}>
+                                          {gameState.isCPUGame ? 'P1 Alt Controls' : 'Player 2 Controls'}
+                                        </span>
+                                        <ul className="text-gray-300 text-[11px] space-y-0.5 leading-tight">
+                                            <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> Arrows / Stick</li>
+                                            <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> 1 / 2 / 3 or Buttons</li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
-                            <div className={`flex-1 bg-[#1a1a2e] border ${gameState.isCPUGame ? 'border-[#4ecdc4]' : 'border-[#2a2a4e]'} p-3 rounded-xl shadow-2xl flex gap-3 items-start`}>
-                                <div className={`w-6 h-6 rounded-full ${gameState.isCPUGame ? 'bg-[#4ecdc4]/20 text-[#4ecdc4] border-[#4ecdc4]/40' : 'bg-[#e94560]/20 text-[#e94560] border-[#e94560]/40'} flex items-center justify-center font-bold text-xs border`}>i</div>
-                                <div className="flex flex-col">
-                                    <span className={`${gameState.isCPUGame ? 'text-[#4ecdc4]' : 'text-[#e94560]'} font-bold text-[10px] uppercase tracking-widest mb-1`}>
-                                      {gameState.isCPUGame ? 'P1 Alt Controls' : 'Player 2 Controls'}
-                                    </span>
-                                    <ul className="text-gray-300 text-[11px] space-y-0.5 leading-tight">
-                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> Arrows / Stick</li>
-                                        <li className="flex items-center gap-2"><span className="w-1 h-1 bg-white rounded-full"></span> 1 / 2 / 3 or Buttons</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
+                        )}
                     </div>
                 )}
                 
@@ -1042,11 +1122,41 @@ const App: React.FC = () => {
                                 className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#e94560]"
                             />
                             <div className="flex justify-center items-center gap-4 mt-2">
-                                <button onClick={() => handleSpeed(-2)} className={`px-3 py-1 rounded ${gameState.replaySpeed === -2 ? 'bg-[#e94560]' : 'bg-gray-700'}`}>⏪</button>
-                                <button onClick={() => handleSpeed(0)} className={`px-3 py-1 rounded ${gameState.replaySpeed === 0 ? 'bg-[#e94560]' : 'bg-gray-700'}`}>⏸</button>
-                                <button onClick={() => handleSpeed(1)} className={`px-3 py-1 rounded ${gameState.replaySpeed === 1 ? 'bg-[#e94560]' : 'bg-gray-700'}`}>▶</button>
-                                <button onClick={() => handleSpeed(2)} className={`px-3 py-1 rounded ${gameState.replaySpeed === 2 ? 'bg-[#e94560]' : 'bg-gray-700'}`}>⏩</button>
-                                <button onClick={toggleReplay} className="px-3 py-1 rounded bg-red-600 text-white font-bold ml-4 hover:bg-red-500">EXIT REPLAY</button>
+                                <button 
+                                    onMouseEnter={() => setReplayControlIndex(0)}
+                                    onClick={() => handleSpeed(-2)} 
+                                    className={`px-3 py-1 rounded transition-transform ${gameState.replaySpeed === -2 ? 'bg-[#e94560]' : 'bg-gray-700'} ${replayControlIndex === 0 ? 'ring-2 ring-white scale-110' : ''}`}
+                                >
+                                    ⏪
+                                </button>
+                                <button 
+                                    onMouseEnter={() => setReplayControlIndex(1)}
+                                    onClick={() => handleSpeed(0)} 
+                                    className={`px-3 py-1 rounded transition-transform ${gameState.replaySpeed === 0 ? 'bg-[#e94560]' : 'bg-gray-700'} ${replayControlIndex === 1 ? 'ring-2 ring-white scale-110' : ''}`}
+                                >
+                                    ⏸
+                                </button>
+                                <button 
+                                    onMouseEnter={() => setReplayControlIndex(2)}
+                                    onClick={() => handleSpeed(1)} 
+                                    className={`px-3 py-1 rounded transition-transform ${gameState.replaySpeed === 1 ? 'bg-[#e94560]' : 'bg-gray-700'} ${replayControlIndex === 2 ? 'ring-2 ring-white scale-110' : ''}`}
+                                >
+                                    ▶
+                                </button>
+                                <button 
+                                    onMouseEnter={() => setReplayControlIndex(3)}
+                                    onClick={() => handleSpeed(2)} 
+                                    className={`px-3 py-1 rounded transition-transform ${gameState.replaySpeed === 2 ? 'bg-[#e94560]' : 'bg-gray-700'} ${replayControlIndex === 3 ? 'ring-2 ring-white scale-110' : ''}`}
+                                >
+                                    ⏩
+                                </button>
+                                <button 
+                                    onMouseEnter={() => setReplayControlIndex(4)}
+                                    onClick={toggleReplay} 
+                                    className={`px-3 py-1 rounded transition-transform bg-red-600 text-white font-bold ml-4 hover:bg-red-500 ${replayControlIndex === 4 ? 'ring-2 ring-white scale-110' : ''}`}
+                                >
+                                    EXIT REPLAY
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1082,7 +1192,7 @@ const App: React.FC = () => {
                                 </button>
                             ) : (
                                 <div className="px-6 py-2 rounded-full font-bold shadow-lg bg-gray-600 text-gray-300 opacity-70 cursor-default">
-                                    Waiting for Host...
+                                    Wait for Host...
                                 </div>
                             )}
                             <button 
