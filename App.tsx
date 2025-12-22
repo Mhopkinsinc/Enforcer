@@ -490,7 +490,7 @@ const App: React.FC = () => {
                                 </div>
                                 <div className={`flex-1 bg-[#1a1a2e] border ${gameState.isCPUGame ? 'border-[#4ecdc4]' : 'border-[#2a2a4e]'} p-3 rounded-xl flex gap-3 items-start`}>
                                     <div className={`w-6 h-6 rounded-full ${gameState.isCPUGame ? 'bg-[#4ecdc4]/20 text-[#4ecdc4]' : 'bg-[#e94560]/20 text-[#e94560]'} flex items-center justify-center font-bold text-xs border`}>i</div>
-                                    <div className="flex flex-col"><span className={`${gameState.isCPUGame ? 'text-[#4ecdc4]' : 'text-[#e94560]'} font-bold text-[10px] uppercase tracking-widest mb-1`}>{gameState.isCPUGame ? 'P1 Alt Controls' : 'Player 2 Controls'}</span><ul className="text-gray-300 text-[11px] space-y-0.5 leading-tight"><li>Arrows / Stick</li><li>1 / 2 / 3 or Buttons</li></ul></div>
+                                    <div className="flex flex-col"><span className={`${gameState.isCPUGame ? 'text-[#4ecdc4]' : 'text-[#e94560]'} font-bold text-[10px] uppercase tracking-widest mb-1`}>{gameState.isCPUGame ? 'P1 Alt Controls' : 'P1 Alt Controls'}</span><ul className="text-gray-300 text-[11px] space-y-0.5 leading-tight"><li>Arrows / Stick</li><li>1 / 2 / 3 or Buttons</li></ul></div>
                                 </div>
                             </div>
                         )}
