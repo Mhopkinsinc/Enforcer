@@ -1,5 +1,5 @@
 import React from 'react';
-import { PixelText } from './PixelText';    
+import { PixelText } from './PixelText';
 import { MOCK_LEADERBOARD } from '../appConstants';
 import { GameState } from '../types';
 
@@ -144,13 +144,13 @@ export const LeaderboardMenu: React.FC<{ onBack: () => void }> = ({ onBack }) =>
                       <th className="p-3 text-xs font-bold tracking-wider border-b-2 border-[#4ecdc4]/30">PLAYER</th>
                       <th className="p-3 text-xs font-bold tracking-wider border-b-2 border-[#4ecdc4]/30 text-center">WINS</th>
                       <th className="p-3 text-xs font-bold tracking-wider border-b-2 border-[#4ecdc4]/30 text-center">LOSSES</th>
-                      <th className="p-3 text-xs font-bold tracking-wider border-b-2 border-[#4ecdc4]/30 text-right">WIN %</th>
+                      <th className="p-3 text-xs font-bold tracking-wider border-b-2 border-[#4ecdc4]/30 text-right">WIN%</th>
                   </tr>
               </thead>
               <tbody className="text-gray-300 text-xs font-mono">
                   {MOCK_LEADERBOARD.map((entry, index) => {
                       const total = entry.wins + entry.losses;
-                      const winRate = total > 0 ? ((entry.wins / total) * 100).toFixed(0) : "0";
+                      const winRate = total > 0 ? (entry.wins / total).toFixed(3).replace(/^0/, '') : ".000";
                       return (
                           <tr key={index} className="even:bg-[#1a233a] hover:bg-[#252f4a] transition-colors border-b border-gray-800/50 last:border-0">
                               <td className="p-2 pl-4 font-bold text-white/70">
@@ -159,7 +159,7 @@ export const LeaderboardMenu: React.FC<{ onBack: () => void }> = ({ onBack }) =>
                               <td className="p-2 font-bold text-[#feca57] tracking-wide">{entry.nickname}</td>
                               <td className="p-2 text-center text-green-400">{entry.wins}</td>
                               <td className="p-2 text-center text-red-400">{entry.losses}</td>
-                              <td className="p-2 pr-4 text-right text-white">{winRate}%</td>
+                              <td className="p-2 pr-4 text-right text-white">{winRate}</td>
                           </tr>
                       );
                   })}
