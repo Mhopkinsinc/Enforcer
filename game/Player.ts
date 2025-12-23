@@ -1,3 +1,4 @@
+
 import { Actor, Engine, SpriteSheet, Animation, AnimationStrategy, Keys, vec, Vector, Color, GraphicsGroup, Frame, Buttons, Axes } from "excalibur";
 import { SCALE, SPRITE_WIDTH, SPRITE_HEIGHT, ANIMATIONS, MOVE_SPEED, FRICTION, HIT_RANGE, HITBOX_WIDTH, FRAMES, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE, FINISHER_KNOCKBACK_FORCE, BOUNCE_FACTOR, STAR_WIDTH, STAR_HEIGHT, STANLEY_WIDTH, STANLEY_HEIGHT } from "../constants";
 import { AnimationState, PlayerSnapshot, SyncPayload, GamepadMapping } from "../types";
@@ -5,6 +6,7 @@ import { HockeyGame } from "./HockeyGame";
 import { BloodParticle } from "./BloodParticle";
 
 export class Player extends Actor {
+    public hideStanley: boolean = false;
     public isPlayer1: boolean;
     public isLocal: boolean = true;
     public isCPU: boolean = false;
@@ -46,7 +48,7 @@ export class Player extends Actor {
         const game = engine as unknown as HockeyGame;
 
         this.spriteSheet = SpriteSheet.fromImageSource({
-            image: game.resources.SpriteSheet,
+            image: this.isPlayer1 ? game.resources.SpriteSheet : game.resources.SpriteSheet2,
             grid: {
                 rows: 17,
                 columns: 1,
@@ -62,7 +64,7 @@ export class Player extends Actor {
 
             if (def.isStanley) {
                 const stanleySheet = SpriteSheet.fromImageSource({
-                    image: game.resources.StanleySheet,
+                    image: this.isPlayer1 ? game.resources.StanleySheet : game.resources.StanleySheet2,
                     grid: { rows: 1, columns: 8, spriteWidth: STANLEY_WIDTH, spriteHeight: STANLEY_HEIGHT }
                 });
                 frames = def.frames.map((frameIndex, i) => {
@@ -149,7 +151,7 @@ export class Player extends Actor {
             this.setState('high_punch');
         } else if (t >= 8000 && t < 8000 + delta) {
             // PRESS K FOR LOW PUNCH
-            this.setState('low_punch');            
+            this.setState('low_punch');
         } else if (t >= 10000 && t < 10000 + delta) {
             // PRESS L TO HOLD
             this.setState('grab');

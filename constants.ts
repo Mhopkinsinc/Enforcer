@@ -2,9 +2,11 @@
 import { ImageSource, Sound } from "excalibur";
 import { AnimationState } from "./types";
 import { SPRITE_SHEET_B64 } from "./game/sprites/playerspritesheet";
+import { SPRITE_SHEET2_B64 } from "./game/sprites/player2spritesheet";
 import { GLOVES_SHEET_B64 } from "./game/sprites/glovesspritesheet";
 import { STARS_SHEET_B64 } from "./game/sprites/starspritesheet";
 import { STANLEY_SHEET_B64 } from "./game/sprites/stanleycupspritesheet";
+import { STANLEY_SHEET2_B64 } from "./game/sprites/stanleycupspritesheet2";
 import { GOALNETS_SHEET_B64 } from "./game/sprites/netsspritesheet";
 import { SOUND_PUNCHHI_B64 } from "./game/sfx/punchhisound";
 import { SOUND_PUNCHLOW_B64 } from "./game/sfx/punchlowsound";
@@ -15,9 +17,11 @@ import { FULLRINK_SHEET_B64 } from "./game/sprites/fullrinkbkg";
 
 export const getResources = () => ({
     SpriteSheet: new ImageSource(SPRITE_SHEET_B64),
+    SpriteSheet2: new ImageSource(SPRITE_SHEET2_B64),
     GlovesSheet: new ImageSource(GLOVES_SHEET_B64),
     StarsSheet: new ImageSource(STARS_SHEET_B64),
     StanleySheet: new ImageSource(STANLEY_SHEET_B64),
+    StanleySheet2: new ImageSource(STANLEY_SHEET2_B64),
     GoalNetsSheet: new ImageSource(GOALNETS_SHEET_B64),
     PunchHiSound: new Sound(SOUND_PUNCHHI_B64),
     PunchLowSound: new Sound(SOUND_PUNCHLOW_B64),

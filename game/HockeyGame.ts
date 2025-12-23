@@ -1,3 +1,4 @@
+
 import { Engine, Loader, Color, Scene, EngineOptions, ImageSource, Vector, PostUpdateEvent, Actor, Rectangle, vec, SpriteSheet, Sprite, Sound, SpriteFont, Text, ScreenElement } from "excalibur";
 import { getResources, SCALE, GLOVES_WIDTH, GLOVES_HEIGHT, KNOCKBACK_FORCE, FINISHER_KNOCKBACK_FORCE } from "../constants";
 import { Player } from "./Player";
@@ -14,9 +15,11 @@ import { HealthBar } from "./HealthBar";
 
 export interface GameResources {
     SpriteSheet: ImageSource;
+    SpriteSheet2: ImageSource;
     GlovesSheet: ImageSource;
     StarsSheet: ImageSource;
     StanleySheet: ImageSource;
+    StanleySheet2: ImageSource;
     GoalNetsSheet: ImageSource;
     PunchHiSound: Sound;
     PunchLowSound: Sound;
@@ -151,9 +154,11 @@ export class HockeyGame extends Engine {
     async start() {
         const loader = new Loader([
             this.resources.SpriteSheet, 
+            this.resources.SpriteSheet2, 
             this.resources.GlovesSheet,
             this.resources.StarsSheet,
             this.resources.StanleySheet,
+            this.resources.StanleySheet2,
             this.resources.GoalNetsSheet,
             this.resources.PunchHiSound,
             this.resources.PunchLowSound,
